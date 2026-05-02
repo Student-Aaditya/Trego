@@ -58,7 +58,7 @@ CREATE TABLE `vendor_informations` (
   `reviews` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`applicant_id`),
   KEY `fk_vendor_user` (`vendor_user_id`),
-  CONSTRAINT `fk_vendor_user` FOREIGN KEY (`vendor_user_id`) REFERENCES `vendor_signup` (`user_id`) ON DELETE CASCADE
+  CONSTRAINT `fk_vendor_user` FOREIGN KEY (`vendor_user_id`) REFERENCES `vendor_signup` (`vendor_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -81,4 +81,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-04-12 11:49:35
+-- Dump completed on 2026-05-02 13:06:18

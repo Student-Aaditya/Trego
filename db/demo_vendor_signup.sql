@@ -23,7 +23,7 @@ DROP TABLE IF EXISTS `vendor_signup`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `vendor_signup` (
-  `user_id` int NOT NULL AUTO_INCREMENT,
+  `vendor_id` int NOT NULL AUTO_INCREMENT,
   `username` varchar(50) NOT NULL,
   `email` varchar(100) NOT NULL,
   `mobileNo` varchar(15) NOT NULL,
@@ -33,7 +33,7 @@ CREATE TABLE `vendor_signup` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `otp` varchar(10) DEFAULT NULL,
   `expires_at` datetime DEFAULT NULL,
-  PRIMARY KEY (`user_id`),
+  PRIMARY KEY (`vendor_id`),
   UNIQUE KEY `username` (`username`),
   UNIQUE KEY `email` (`email`)
 ) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
@@ -58,4 +58,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-04-12 11:49:35
+-- Dump completed on 2026-05-02 13:06:15

@@ -33,7 +33,7 @@ CREATE TABLE `bucket` (
   `category` varchar(50) DEFAULT NULL,
   `category_type` varchar(50) DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -42,7 +42,7 @@ CREATE TABLE `bucket` (
 
 LOCK TABLES `bucket` WRITE;
 /*!40000 ALTER TABLE `bucket` DISABLE KEYS */;
-INSERT INTO `bucket` VALUES (1,'b1','[\"https://res.cloudinary.com/dxoy1r7v8/image/upload/v1768125489/uploads/kj86fhza4i6xgzs43d03.jpg\"]','small',50,'paracetamol','2026-01-10 18:30:00','pharmacy','retailer'),(2,'Samll','[\"https://res.cloudinary.com/dxoy1r7v8/image/upload/v1768132387/uploads/g10n0rgprkr0qmovcs0o.jpg\"]','medium',60,'XYZ','2026-01-11 18:30:00','pharmacy','wholesaler'),(3,'cdc','[\"https://res.cloudinary.com/dxoy1r7v8/image/upload/v1769255400/uploads/uqyjn8wknj2xkzwkqeme.jpg\"]','da',12,'cs','2026-01-29 18:30:00','pharmacy','wholesaler'),(4,'small','[\"https://res.cloudinary.com/dxoy1r7v8/image/upload/v1769735018/uploads/xzeslmitkh2suqbjk6m9.jpg\"]','samll',60,'aca','2026-01-29 18:30:00','pharmacy','retailer'),(5,'ABC','[\"https://res.cloudinary.com/dxoy1r7v8/image/upload/v1771956865/uploads/gwwkdbgu2ivqy8lqy4w8.jpg\"]','Small',10,'XYZ','2026-02-23 18:30:00','pharmacy','retailer'),(6,'Super','[\"https://res.cloudinary.com/dxoy1r7v8/image/upload/v1774081143/uploads/xra5isqidqkxulquflof.jpg\"]','Large',1000,'abc','2026-03-20 18:30:00','pharmacy','super_stockist'),(7,'ced','[]','small',10,'dse','2026-03-22 18:30:00','pharmacy','wholesaler');
+INSERT INTO `bucket` VALUES (1,'b1','[\"https://res.cloudinary.com/dxoy1r7v8/image/upload/v1768125489/uploads/kj86fhza4i6xgzs43d03.jpg\"]','small',50,'paracetamol','2026-01-10 18:30:00','pharmacy','retailer'),(4,'small','[\"https://res.cloudinary.com/dxoy1r7v8/image/upload/v1769735018/uploads/xzeslmitkh2suqbjk6m9.jpg\"]','samll',60,'aca','2026-01-29 18:30:00','pharmacy','retailer'),(5,'ABC','[\"https://res.cloudinary.com/dxoy1r7v8/image/upload/v1771956865/uploads/gwwkdbgu2ivqy8lqy4w8.jpg\"]','Small',10,'XYZ','2026-02-23 18:30:00','pharmacy','retailer'),(6,'Super','[\"https://res.cloudinary.com/dxoy1r7v8/image/upload/v1774081143/uploads/xra5isqidqkxulquflof.jpg\"]','Large',1000,'abc','2026-03-20 18:30:00','pharmacy','super_stockist'),(8,'Benzoyl','[\"https://res.cloudinary.com/dxoy1r7v8/image/upload/v1776696091/uploads/fijh1fymdtuducogjfjq.jpg\"]','small',50,'Derma','2026-04-19 18:30:00','pharmacy','retailer'),(9,'Store','[\"https://res.cloudinary.com/dxoy1r7v8/image/upload/v1776792859/uploads/lyd1ifpu7fts43kepopy.jpg\"]','Small',100,'Matic','2026-04-20 18:30:00','pharmacy','retailer'),(10,'New Store','[\"https://res.cloudinary.com/dxoy1r7v8/image/upload/v1777114413/uploads/mlz3xuao7kohcuiwqwno.jpg\"]','small',500,'Asha Store','2026-04-24 18:30:00','pharmacy','wholesaler');
 /*!40000 ALTER TABLE `bucket` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -55,4 +55,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-04-12 11:49:37
+-- Dump completed on 2026-05-02 13:06:13
