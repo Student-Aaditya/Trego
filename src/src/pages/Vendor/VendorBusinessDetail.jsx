@@ -10,6 +10,7 @@ import axios from 'axios'
 
 function VendorBusinessDetail() {
     const navigate = useNavigate();
+    const api="http://localhost:5000";
     const {
         register,
         handleSubmit,
@@ -67,7 +68,7 @@ function VendorBusinessDetail() {
     formData.append("cancelled_cheque", data.cancelled_cheque[0]);
 
     const response = await axios.post(
-      "http://localhost:5000/vendor/vendor/business/details",
+      `${api}/vendor/vendor/business/details`,
       formData,
       {
         headers: {
