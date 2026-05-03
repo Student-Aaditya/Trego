@@ -42,7 +42,7 @@ const medicineControllers = {
         category_type
       )
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `;
+    `;  
 
       const values = [
         bucket_name,
