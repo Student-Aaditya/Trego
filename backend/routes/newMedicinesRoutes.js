@@ -3,19 +3,27 @@ const router = express.Router();
 
 const medicineController = require("../controllers/newMedicineController.js");
 const upload = require("../Services/cloudinary.js");
-const { protect } = require("../middleware/authMiddleware.js");
-console.log('--- newMedicinesRoutes.js --- protect is:', typeof protect);
+const { protect, isSuperAdmin } = require("../middleware/authMiddleware.js");
+console.log("--- newMedicinesRoutes.js --- protect is:", typeof protect);
 
 /* ======================================================
    DEBUG ENDPOINT
    ====================================================== */
-router.get("/ping", (req, res) => res.send("pong - newMedicinesRoutes is loading"));
+router.get("/ping", (req, res) =>
+  res.send("pong - newMedicinesRoutes is loading"),
+);
 
 // get vendor bucket medicine
 router.get(
   "/vendor/medicine/bucket/:bucket_id",
   protect,
-  medicineController.getVendorMedicinesByBucket
+  medicineController.getVendorMedicinesByBucket,
+);
+
+router.post(
+  "/vendor/bucket/add-medicine/:bucket_id",
+  protect,
+  medicineController.addBucketMedicineToVendorBucket,
 );
 
 /* ======================================================
@@ -73,10 +81,16 @@ router.get(
 router.get("/vendor/medicine", protect, medicineController.getVendorMedicines);
 
 //for vendor medicine creation
-router.post(
+ router.post(
   "/vendor/medicine/:bucket_id",
   protect,
-  upload.array("images", 5),
+  upload.fields([
+    { name: "front", maxCount: 1 },
+    { name: "back", maxCount: 1 },
+    { name: "top", maxCount: 1 },
+    { name: "view", maxCount: 1 },
+    { name: "expiry", maxCount: 1 }
+  ]),
   medicineController.addVendorMedicine
 );
 
@@ -84,7 +98,13 @@ router.post(
 router.put(
   "/vendor/medicine/:id",
   protect,
-  upload.array("images", 5),
+  upload.fields([
+    { name: "front", maxCount: 1 },
+    { name: "back", maxCount: 1 },
+    { name: "top", maxCount: 1 },
+    { name: "view", maxCount: 1 },
+    { name: "expiry", maxCount: 1 }
+  ]),
   medicineController.updateVendorMedicine,
 );
 
@@ -95,7 +115,11 @@ router.delete(
   medicineController.deleteVendorMedicine,
 );
 router.get("/batches/:bucket_id", medicineController.getBatches);
-
+//medicine through bucket
+router.get(
+  "/medicine/bucket/:bucket_id",
+  medicineController.getMedicineThroughBucketId,
+);
 //medicine through batch id
 router.get(
   "/batches/medicine/:bucket_id",
@@ -107,11 +131,11 @@ router.get("/medicine/price", medicineController.getMedicinePrice);
 //price through price id
 router.get("/price/:price_id", medicineController.getPriceThroughPriceId);
 //getting medicine price detail
-router.get("/price/:medicine_id/:batch_id", medicineController.getPriceDetail);
+router.get("/price/detail/:medicine_id", medicineController.getPriceDetail);
 
 //update each medicine price through medicine id and batch id
 router.put(
-  "/price/:medicine_id/:batch_id",
+  "/price/:medicine_id",
   protect,
   medicineController.updateMedicinePrice,
 );
@@ -125,6 +149,7 @@ router.get(
   "/medicineDetail/:medicine_id",
   medicineController.getMedicineDetails,
 );
+
 //medicine price detail through medicine and batch id
 router.get(
   "/medicinePriceDetail/:medicine_id/:batch_id",
@@ -137,7 +162,11 @@ router.post(
   protect,
   medicineController.addMedicineToBucket,
 );
-
+router.post(
+  "/vendor/bucket/:bucket_id",
+  protect,
+  medicineController.getVendorBucketMedicine,
+);
 // add medicine through global list
 router.post(
   "/vendor/bucket/add-global-medicine",
@@ -159,5 +188,5 @@ router.get("/all", medicineController.getAllMedicineThroughBatch);
 // Delete medicine
 // router.delete("/:medicineId", protect, medicineController.deleteMedicine);
 
-router.delete("/:batch_id/:medicine_id", medicineController.deleteMedicine);
+router.delete("/:medicine_id", medicineController.deleteMedicine);
 module.exports = router;
