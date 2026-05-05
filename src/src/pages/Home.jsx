@@ -9,7 +9,6 @@ import {
   FaGlobe,
 } from "react-icons/fa";
 import { useState, useEffect } from "react";
-import { initFlowbite } from "flowbite";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { Search } from "lucide-react";
@@ -91,9 +90,7 @@ const [filters, setFilters] = useState({
       [key]: !prev[key],
     }));
   };
-  useEffect(() => {
-    initFlowbite();
-  }, []);
+ 
   const submit = async (e) => {
     e.preventDefault();
     setErr("");
