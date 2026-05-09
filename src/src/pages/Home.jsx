@@ -9,9 +9,10 @@ import {
   FaGlobe,
 } from "react-icons/fa";
 import { useState, useEffect } from "react";
+import { initFlowbite } from "flowbite";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { Search } from "lucide-react";
+import { Search, Locate, Eye } from "lucide-react";
 import axios from "axios";
 export default function HealthcareLanding() {
   const [userType, setUserType] = useState("user");
@@ -22,7 +23,7 @@ export default function HealthcareLanding() {
   const { setUser } = useAuth();
   const api = "http://localhost:5000";
 
-   const [qty, setQty] = useState(1);
+  const [qty, setQty] = useState(1);
 
   const medicine = {
     name: "Dolo 250 Oral Suspension",
@@ -46,10 +47,11 @@ export default function HealthcareLanding() {
   };
 
   const discount = Math.round(
-    ((medicine.mrp - medicine.price) / medicine.mrp) * 100
+    ((medicine.mrp - medicine.price) / medicine.mrp) * 100,
   );
 
-   const [cart, setCart] = useState([]);
+  const [cart, setCart] = useState([]);
+  const [showCheckout, setShowCheckout] = useState(false);
 
   const vendors = [
     {
@@ -70,13 +72,31 @@ export default function HealthcareLanding() {
       discount: 60,
       delivery: "60 mins",
     },
+    {
+      id: 1,
+      name: "Health Care",
+      image: "https://picsum.photos/100?random=21",
+      mrp: 300,
+      price: 120,
+      discount: 55,
+      delivery: "30 mins",
+    },
+    {
+      id: 2,
+      name: "Medical Store",
+      image: "https://picsum.photos/100?random=22",
+      mrp: 300,
+      price: 100,
+      discount: 60,
+      delivery: "60 mins",
+    },
   ];
 
   const handleAdd = (vendor) => {
     setCart((prev) => [...prev, vendor]);
   };
 
-const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState({
     nearby: false,
     under100: false,
     under200: false,
@@ -90,7 +110,9 @@ const [filters, setFilters] = useState({
       [key]: !prev[key],
     }));
   };
- 
+  useEffect(() => {
+    initFlowbite();
+  }, []);
   const submit = async (e) => {
     e.preventDefault();
     setErr("");
@@ -144,7 +166,7 @@ const [filters, setFilters] = useState({
   return (
     <div className="font-sans text-gray-800">
       {/* ================= NAVBAR ================= */}
-      <nav className="flex justify-between items-center px-6 md:px-20 py-4 shadow-xl bg-violet-200">
+      <nav className="flex justify-center md:justify-between items-center px-6 md:px-20 py-4 shadow-xl bg-violet-200">
         <div className="w-20 h-20">
           <img
             src="./logo.jpeg"
@@ -152,7 +174,7 @@ const [filters, setFilters] = useState({
             className="w-full h-full object-contain rounded-full"
           />
         </div>
-        <div className="hidden md:flex gap-8 text-[18px]  ">
+        <div className="hidden md:flex gap-6 text-[18px]  ">
           <button className="uppercase font-bold  text-slate-900 px-4 py-2 rounded-lg hover:bg-white hover:text-violet-500 hover:cursor-pointer hover:border-2 hover:border-violet-500">
             Home
           </button>
@@ -164,9 +186,9 @@ const [filters, setFilters] = useState({
           </button>
         </div>
 
-        <button className="bg-violet-500 uppercase text-white px-4 py-2 rounded-lg hover:bg-violet-600 hover:cursor-pointer">
+        {/* <button className="bg-violet-500 uppercase text-white px-4 py-2 rounded-lg hover:bg-violet-600 hover:cursor-pointer">
           Login
-        </button>
+        </button> */}
       </nav>
       <section className="flex flex-row items-center px-6 md:px-10 py-5 bg-violet-30 gap-4">
         {/* <div className="min-w-5xl h-110 ">
@@ -183,7 +205,7 @@ const [filters, setFilters] = useState({
             {/* <!-- Item 1 --> */}
             <div className=" duration-700 ease-in-out" data-carousel-item>
               <img
-                src="./medicine.webp"
+                src="https://png.pngtree.com/png-vector/20240705/ourmid/pngtree-pills-of-different-colours-lay-on-table-png-image_12969516.png"
                 className="absolute block w-full -translate-x-1/2 -translate-y-1/2 top-1/2 left-1/2"
                 alt="..."
               />
@@ -191,7 +213,7 @@ const [filters, setFilters] = useState({
             {/* <!-- Item 2 --> */}
             <div className=" duration-700 ease-in-out" data-carousel-item>
               <img
-                src="./logo.jpeg"
+                src="https://png.pngtree.com/png-vector/20240626/ourmid/pngtree-guide-to-understanding-different-types-of-medicines-png-image_12811993.png"
                 className="absolute block w-full -translate-x-1/2 -translate-y-1/2 top-1/2 left-1/2"
                 alt="..."
               />
@@ -199,7 +221,7 @@ const [filters, setFilters] = useState({
             {/* <!-- Item 3 --> */}
             <div className="hidden duration-700 ease-in-out" data-carousel-item>
               <img
-                src="./medic.jpg"
+                src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSIRzCC-rYiqc7KmGdz071CZuHZoHKpAcMo1w&s"
                 className="absolute block w-full -translate-x-1/2 -translate-y-1/2 top-1/2 left-1/2"
                 alt="..."
               />
@@ -445,14 +467,14 @@ const [filters, setFilters] = useState({
       <section className="bg-violet-100 h-60 py-5">
         <h1 className="text-center mt-5 text-4xl font-bold  ">Our Services</h1>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3 md:m-10">
-          <button className="border-1 border-violet-500 text-violet-500 px-2 py-2 rounded-lg hover:bg-violet-600 hover:cursor-pointer hover:text-white">
+          <button className=" bg-violet-500 text-white px-2 py-2 rounded-lg hover:bg-violet-600 hover:cursor-pointer hover:text-white">
             Medicine
           </button>
           <button className="border-1 border-violet-500 text-violet-500 px-2 py-2 rounded-lg hover:bg-violet-600 hover:cursor-pointer hover:text-white">
-            Doctor{" "}
+            Lab Test{" "}
           </button>
           <button className="border-1 border-violet-500 text-violet-500 px-2 py-2 rounded-lg hover:bg-violet-600 hover:cursor-pointer hover:text-white">
-            Pathology
+            Doctor
           </button>
           <button className="border-1 border-violet-500 text-violet-500 px-2 py-2 rounded-lg hover:bg-violet-600 hover:cursor-pointer hover:text-white">
             Hospital / Surgery
@@ -461,25 +483,31 @@ const [filters, setFilters] = useState({
       </section>
 
       {/*Search Bar */}
-      <div className="flex items-center px-85 mt-4 mb-4 gap-2 py-5 shadow-md  ">
+      <div className="flex items-center px-35 mt-4 mb-4 py-5 shadow-md  ">
+        <div className="flex flex-row w-100 gap-2 rounded-full border border-violet-500 shadow-lg hover:scale-95 transition p-1 px-10 cursor-pointer">
+          <span className="text-sm font-semibold text-slate-600">
+            <Locate size={25} />{" "}
+          </span>
+          <h1 className="text-lg font-semibold">New Delhi, Delhi</h1>
+          {/* <MapPin size={25} className="cursor-pointer text-slate-900 " /> */}
+        </div>
         <input
           placeholder="Search medicines..."
           // value={searchQuery}
           // onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full rounded-full bg-white/5 border border-violet-500 text-black px-10 py-2 items-center shadow-lg hover:scale-95 transition"
+          className="w-full rounded-full bg-white/5 border border-violet-500 text-black px-10 py-2 items-center shadow-lg hover:scale-95 transition md:ml-30"
         />
         <div className="p-2 px-10 border border-violet-500 rounded-full shadow-lg hover:scale-95 transition cursor-pointer">
-        <Search size={25}  className="cursor-pointer text-slate-900 "/>
+          <Search size={25} className="cursor-pointer text-slate-900 " />
         </div>
-
       </div>
 
       {/* <section className="flex flex-row items-center px-6 md:px-10 py-5 bg-violet-30 gap-4"> */}
-        {/* <div className="min-w-5xl h-110 ">
+      {/* <div className="min-w-5xl h-110 ">
           <img src="./medicine.webp" className="w-full h-full object-cover "/>
         </div> */}
 
-        {/* <div className="w-170 h-80 rounded-lg ml-20 shadow-2xl shadow-slate-500 cursor-pointer ">
+      {/* <div className="w-170 h-80 rounded-lg ml-20 shadow-2xl shadow-slate-500 cursor-pointer ">
           <img src="./medic.jpg" className="w-full h-full object-cover rounded-lg"/>
         </div>
 
@@ -493,7 +521,7 @@ const [filters, setFilters] = useState({
           <p className="text-slate-900 ">Lorem ipsum dolor sit amet consectetur adipisicing elit. 
             Impedit doloribus magni voluptas ipsum voluptates iure dolor, 
             eos quos natus blanditiis. Architecto sapiente nihil dicta exercitationem.</p> */}
-          {/* <form onSubmit={submit} className="flex flex-col gap-4 ">
+      {/* <form onSubmit={submit} className="flex flex-col gap-4 ">
             <input
               type="text"
               placeholder="Username"
@@ -518,13 +546,13 @@ const [filters, setFilters] = useState({
               <button onClick={handleCreate}>Create New Account</button>
             </div>
           </form> */}
-        {/* </div>
+      {/* </div>
       </section> */}
       {/* ================= APP DOWNLOAD ================= */}
       {/* <section className="px-8 md:px-20 py-16 bg-white">
         <div className="grid md:grid-cols-2 items-center gap-20"> */}
-          {/* LEFT CONTENT */}
-          {/* <div className="w-full h-full mt-100">
+      {/* LEFT CONTENT */}
+      {/* <div className="w-full h-full mt-100">
             <h2 className="text-4xl font-bold mb-4 uppercase">
               <span className="text-violet-500">Get Medicines</span> at Best
               Prices
@@ -536,8 +564,8 @@ const [filters, setFilters] = useState({
             </p>
 
             <div className="flex gap-4"> */}
-              {/* PLAY STORE BUTTON */}
-              {/* <a
+      {/* PLAY STORE BUTTON */}
+      {/* <a
                 href="https://play.google.com/store"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -550,8 +578,8 @@ const [filters, setFilters] = useState({
                 </div>
               </a> */}
 
-              {/* APP STORE BUTTON */}
-              {/* <a
+      {/* APP STORE BUTTON */}
+      {/* <a
                 href="#"
                 className="flex items-center gap-3 bg-slate-900 text-white px-5 py-3 rounded-lg hover:scale-105 transition"
               >
@@ -564,8 +592,8 @@ const [filters, setFilters] = useState({
             </div>
           </div> */}
 
-          {/* RIGHT IMAGE */}
-          {/* <div className="flex justify-center w-100 h-150 md:ml-40">
+      {/* RIGHT IMAGE */}
+      {/* <div className="flex justify-center w-100 h-150 md:ml-40">
             <img
               src="./appImage.jpeg"
               alt="app preview"
@@ -575,42 +603,44 @@ const [filters, setFilters] = useState({
         </div>
       </section> */}
 
-{/*Add to cart */}
-<section className="max-w-7xl mx-auto p-4 md:p-6">
-      <div className="grid md:grid-cols-3 gap-6">
-
-        {/* LEFT */}
-        <div className="md:col-span-2 space-y-5">
-
-          {/* TITLE */}
-          <div>
-            <h1 className="text-4xl font-bold">{medicine.name}</h1>
-            {/* <p className="text-sm text-gray-500 mt-1">
+      {/*Add to cart */}
+      <section className="max-w-7xl mx-auto p-4 md:p-6">
+        <div className="grid md:grid-cols-3 gap-6">
+          {/* LEFT */}
+          <div className="md:col-span-2 space-y-5">
+            {/* TITLE */}
+            <div>
+              {/* <p className="text-sm text-gray-500 mt-1">
               Prescription Required
             </p> */}
 
-            {/* <p className="text-sm text-gray-600 mt-2">
+              {/* <p className="text-sm text-gray-600 mt-2">
               Marketer:{" "}
               <span className="font-medium text-gray-800">
                 {medicine.manufacturer}
               </span>
             </p> */}
-          </div>
+            </div>
 
-          {/* IMAGE CAROUSEL */}
-          <div className="flex gap-15 shadow-lg p-12 rounded-lg">
-            {medicine.images.map((img, i) => (
-              <img
-                key={i}
-                src={img}
-                alt="medicine"
-                className="w-50 h-50 object-contain border rounded-lg p-2 bg-violet-100 cursor-pointer hover:scale-105 transition"
-              />
-            ))}
-          </div>
-
-          {/* SALT */}
-          {/* <div className="space-y-1 text-sm">
+            {/* IMAGE CAROUSEL */}
+            <div className="flex gap-15 shadow-lg p-12 rounded-lg">
+              {medicine.images.map((img, i) => (
+                <img
+                  key={i}
+                  src={img}
+                  alt="medicine"
+                  className="w-50 h-50 object-contain border rounded-lg p-2 bg-violet-100 cursor-pointer hover:scale-105 transition"
+                />
+              ))}
+            </div>
+            <div className="flex justify-between">
+              <h1 className="text-4xl font-bold">{medicine.name}</h1>
+              <button className="font-bold text-lg border-1 border-violet-500 px-2 rounded-lg cursor-pointer ">
+                View Full Discription
+              </button>
+            </div>
+            {/* SALT */}
+            {/* <div className="space-y-1 text-sm">
             <p>
               <span className="font-medium">Salt Composition:</span>{" "}
               {medicine.salt}
@@ -621,248 +651,330 @@ const [filters, setFilters] = useState({
             </p>
           </div> */}
 
-          {/* SUBSTITUTE */}
-          <div className="bg-violet-500 border border-violet-500 rounded-lg p-3 flex justify-between items-center">
-            <p className="text-white text-sm font-medium">
-              Cheaper alternative available with same composition
-            </p>
-            <button className="text-white text-sm font-medium">
-              View
-            </button>
+            {/* SUBSTITUTE */}
+            {/* <div className="bg-violet-500 border border-violet-500 rounded-lg p-3 flex justify-between items-center">
+              <p className="text-white text-sm font-medium">
+                Cheaper alternative available with same composition
+              </p>
+              <button className="text-white text-sm font-medium">View</button>
+            </div> */}
+
+            {/* DESCRIPTION */}
+            <div className="space-y-3">
+              <div className="flex justify-between">
+                <h2 className="font-semibold text-lg">
+                  <span className="font-medium text-xl text-[#f72585]">
+                    {" "}
+                    Packaging :
+                  </span>
+                  Strip Of 10 Tablets
+                </h2>
+              </div>
+
+              <h2 className="font-semibold text-lg">
+                <span className="font-medium text-xl text-[#f72585]">
+                  {" "}
+                  Salt Composition :
+                </span>
+                Salt
+              </h2>
+              <h2 className="font-semibold text-lg">
+                <span className="font-medium text-xl text-[#f72585]">
+                  {" "}
+                  Manufacturer :
+                </span>
+                Manufacturer
+              </h2>
+            </div>
           </div>
 
-          {/* DESCRIPTION */}
-          <div className="space-y-3">
-            <h2 className="font-semibold text-lg">
-              Your child’s medicine at a glance
-            </h2>
-
-            <p className="text-sm text-gray-600 leading-relaxed">
-              {medicine.description}
-            </p>
-          </div>
-        </div>
-
-        {/* RIGHT CARD */}
-        <div className="border-1 border-violet-500 rounded-xl p-4 shadow-sm h-full sticky top-4 space-y-5">
-
-  
-
-  
-
-  {/* 🔥 NEW SECTION (2 IMAGE CARDS) */}
-  <div className=" rounded-xl p-3 space-y-3 h-full flex-1">
-    
-    <div className="grid grid-cols-2 gap-3 h-80 flex-1">
-
-      {/* CARD 1 */}
-      <div className="bg-white rounded-lg  shadow-sm flex flex-col items-center">
-        <h1 className="font-bold">Current Price</h1>
-        <img
-          src="data:image/jpeg;base64,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"
-          className="w-full h-full object-contain"
-        />
-        <p className="text-sm text-center font-medium">
-          Dolo 250 Suspension
-        </p>
-        <p className="text-sm font-semibold text-green-700 mt-1">
-          ₹39.1
-        </p>
-      </div>
-
-      {/* CARD 2 */}
-      <div className="bg-white rounded-lg  shadow-sm flex flex-col items-center">
-        <h1 className="font-bold">Lower Price</h1>
-        <img
-          src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQd9uFygJI67usBjyFaEQbIHx2-3dNTfb8aBw&s"
-          className="w-full h-full object-contain "
-        />
-        <p className="text-sm text-center font-medium">
-          Dolopar 250 Suspension
-        </p>
-        <p className="text-sm font-semibold text-green-700 mt-1">
-          ₹37.6
-        </p>
-        
-      </div>
-
-    </div>
-{/* ADD TO CART */}
-  <button className="w-full bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg font-medium transition cursor-pointer">
-    Add to cart
-  </button>
-
-    
-  </div>
-</div>
-      </div>
-    </section>
-      {/*Filter Section */}
-      <section>
-<div className="w-full border-b bg-white sticky top-0 z-30">
-      <div className="max-w-6xl mx-auto flex items-center gap-10 overflow-x-auto px-12 py-3">
-
-        {/* LABEL */}
-        <span className="text-xl font-bold text-gray-700">
-          Filters:
-        </span>
-
-        {/* Nearby */}
-        <button
-          onClick={() => handleChange("nearby")}
-          className={`flex items-center gap-2 px-3 py-1.5 border-1 border-violet-500 text-violet-500 rounded-full  text-sm transition cursor-pointer ${
-            filters.nearby
-              ? "bg-violet-600 text-white border-violet-600"
-              : "border-gray-300 hover:bg-gray-200"
-          }`}
-        >
-          <input type="checkbox" checked={filters.nearby} readOnly />
-          Nearby
-        </button>
-
-        {/* Under 100 */}
-        <button
-          onClick={() => handleChange("under100")}
-          className={`flex items-center gap-2 px-3 py-1.5 border-1 border-violet-500 text-violet-500 rounded-full  text-sm transition cursor-pointer ${
-            filters.under100
-              ? "bg-violet-600 text-white border-violet-600"
-              : "border-gray-300 hover:bg-gray-200"
-          }`}
-        >
-          <input type="checkbox" checked={filters.under100} readOnly />
-          Under ₹100
-        </button>
-
-        {/* Under 200 */}
-        <button
-          onClick={() => handleChange("under200")}
-          className={`flex items-center gap-2 px-3 py-1.5 border-1 border-violet-500 text-violet-500 rounded-full  text-sm transition cursor-pointer ${
-            filters.under200
-              ? "bg-violet-600 text-black border-violet-600"
-              : "border-gray-300 hover:bg-gray-200"
-          }`}
-        >
-          <input type="checkbox" checked={filters.under200} readOnly />
-          Under ₹200
-        </button>
-
-        {/* Above 500 */}
-        <button
-          onClick={() => handleChange("above500")}
-          className={`flex items-center gap-2 px-3 py-1.5 border-1 border-violet-500 text-violet-500 rounded-full  text-sm transition cursor-pointer ${
-            filters.above500
-              ? "bg-violet-600 text-white border-violet-600"
-              : "border-gray-300 hover:bg-gray-200"
-          }`}
-        >
-          <input type="checkbox" checked={filters.above500} readOnly />
-          Above ₹500
-        </button>
-
-        {/* Available */}
-        <button
-          onClick={() => handleChange("availability")}
-          className={`flex items-center gap-2 px-3 py-1.5 border-1 border-violet-500 text-violet-500 rounded-full  text-sm transition cursor-pointer ${
-            filters.availability
-              ? "bg-violet-600 text-white border-violet-600"
-              : "border-gray-300 hover:bg-gray-200"
-          }`}
-        >
-          <input type="checkbox" checked={filters.availability} readOnly />
-          Available Now
-        </button>
-
-      </div>
-    </div>
-
-      </section>
-    {/*Add to vendor */}
-    <section className="bg-violet-50 py-10">
-      <div className="max-w-7xl mx-auto px-4 md:px-6">
-        <h2 className="text-3xl font-bold mb-8 text-center text-slate-800">
-          Compare & Add to Cart
-        </h2>
-
-        {/* GRID */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {vendors.map((v) => (
-            <div
-              key={v.id}
-              className="bg-white border-2 border-transparent hover:border-violet-500 rounded-2xl p-6 shadow-md hover:shadow-xl transition-all duration-300 flex flex-col justify-between"
-            >
-              {/* HEADER */}
-              <div className="flex items-center gap-4 mb-4">
-                <div className="w-16 h-16 bg-violet-100 rounded-lg p-2 flex items-center justify-center shrink-0">
-                   <img
-                    src={v.image}
-                    className="w-full h-full object-contain mix-blend-multiply"
-                    alt={v.name}
+          {/* RIGHT CARD */}
+          <div className="border-1 border-violet-500 rounded-xl p-4 shadow-sm h-full sticky top-4 space-y-5">
+            {/* 🔥 NEW SECTION (2 IMAGE CARDS) */}
+            <div className=" rounded-xl p-3 space-y-3 h-full flex-1">
+              <div className="grid grid-cols-1 gap-3 h-80 flex-1">
+                {/* CARD 1 */}
+                {/* <div className="bg-white rounded-lg  shadow-sm flex flex-col items-center">
+                  <h1 className="font-bold">Current Price</h1>
+                  <img
+                    src="data:image/jpeg;base64,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"
+                    className="w-full h-full object-contain"
                   />
-                </div>
-                <div>
-                  <h3 className="font-bold text-lg text-slate-800">{v.name}</h3>
-                  <p className="text-sm text-violet-600 font-medium">
-                    Delivered in {v.delivery}
+                  <p className="text-sm text-center font-medium">
+                    Dolo 250 Suspension
                   </p>
+                  <p className="text-sm font-semibold text-green-700 mt-1">
+                    ₹39.1
+                  </p>
+                </div> */}
+
+                {/* CARD 2 */}
+                <div className="bg-white rounded-lg  shadow-sm flex flex-col items-center">
+                  <h1 className="font-bold text-2xl text-[#f72585]">
+                    Substitute{" "}
+                  </h1>
+                  <img
+                    src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQd9uFygJI67usBjyFaEQbIHx2-3dNTfb8aBw&s"
+                    className="w-full h-full object-contain "
+                  />
+                  <p className="text-lg text-center font-medium">
+                    Dolopar 250 Suspension
+                  </p>
+                  <p className="text-xl font-bold text-green-700 mt-1">₹37.6</p>
                 </div>
               </div>
-
-              {/* PRICE SECTION */}
-              <div className="mt-2 mb-4 bg-slate-50 rounded-lg p-4">
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-sm text-slate-500">MRP</span>
-                  <span className="text-sm text-slate-500 line-through">₹{v.mrp}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="font-semibold text-slate-700">Best Price</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-2xl font-bold text-slate-900">₹{v.price}</span>
-                  </div>
-                </div>
-                <div className="mt-2 text-right">
-                    <span className="inline-block bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">
-                      Save {v.discount}%
-                    </span>
-                </div>
-              </div>
-
-              {/* ADD BUTTON */}
-              <button
-                onClick={() => handleAdd(v)}
-              className="mt-4 w-full bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg font-medium"
-              >
-              Add
+              {/* ADD TO CART */}
+              <button className="w-full bg-red-500 mt-25 hover:bg-red-600 text-white py-2 rounded-lg font-medium transition cursor-pointer">
+                Add to cart
               </button>
             </div>
-          ))}
+          </div>
         </div>
+      </section>
+      {/*Filter Section */}
+      {/* <section>
+        <div className="w-full border-b bg-white sticky top-0 z-30">
+          <div className="max-w-6xl mx-auto flex items-center gap-10 overflow-x-auto px-12 py-3">
+            {/* LABEL */}
+      {/* <span className="text-xl font-bold text-gray-700">Filters:</span>
 
-        {/* CART PREVIEW */}
-        {cart.length > 0 && (
-        <div className="mt-6 border rounded-lg p-4 bg-gray-50">
-          <h3 className="font-semibold mb-2">Cart</h3>
+            {/* Nearby */}
+      {/* <button
+              onClick={() => handleChange("nearby")}
+              className={`flex items-center gap-2 px-3 py-1.5 border-1 border-violet-500 text-violet-500 rounded-full  text-sm transition cursor-pointer ${
+                filters.nearby
+                  ? "bg-violet-600 text-white border-violet-600"
+                  : "border-gray-300 hover:bg-gray-200"
+              }`}
+            >
+              <input type="checkbox" checked={filters.nearby} readOnly />
+              Nearby
+            </button> */}
 
-              {cart.map((item, i) => (
-                <div
-                  key={i}
-              className="flex justify-between text-sm border-b py-1"
-                >
-              <span>{item.name}</span>
-              <span>₹{item.price}</span>
+      {/* Under 100 */}
+      {/* <button
+              onClick={() => handleChange("under100")}
+              className={`flex items-center gap-2 px-3 py-1.5 border-1 border-violet-500 text-violet-500 rounded-full  text-sm transition cursor-pointer ${
+                filters.under100
+                  ? "bg-violet-600 text-white border-violet-600"
+                  : "border-gray-300 hover:bg-gray-200"
+              }`}
+            >
+              <input type="checkbox" checked={filters.under100} readOnly />
+              Under ₹100
+            </button> */}
+
+      {/* Under 200 */}
+      {/* <button
+              onClick={() => handleChange("under200")}
+              className={`flex items-center gap-2 px-3 py-1.5 border-1 border-violet-500 text-violet-500 rounded-full  text-sm transition cursor-pointer ${
+                filters.under200
+                  ? "bg-violet-300 text-black border-violet-300 cursor-pointer"
+                  : "border-gray-300 hover:bg-gray-200 cursor-pointer "
+              }`}
+            >
+              <input type="checkbox" checked={filters.under200} readOnly />
+              Under ₹200
+            </button> */}
+
+      {/* Above 500 */}
+      {/* <button
+              onClick={() => handleChange("above500")}
+              className={`flex items-center gap-2 px-3 py-1.5 border-1 border-violet-500 text-violet-500 rounded-full  text-sm transition cursor-pointer ${
+                filters.above500
+                  ? "bg-violet-600 text-white border-violet-600"
+                  : "border-gray-300 hover:bg-gray-200"
+              }`}
+            >
+              <input type="checkbox" checked={filters.above500} readOnly />
+              Above ₹500
+            </button> */}
+
+      {/* Available */}
+      {/* <button
+              onClick={() => handleChange("availability")}
+              className={`flex items-center gap-2 px-3 py-1.5 border-1 border-violet-500 text-violet-500 rounded-full  text-sm transition cursor-pointer ${
+                filters.availability
+                  ? "bg-violet-600 text-white border-violet-600"
+                  : "border-gray-300 hover:bg-gray-200"
+              }`}
+            >
+              <input type="checkbox" checked={filters.availability} readOnly />
+              Available Now
+            </button>
+          </div>
+        </div>
+      </section> */}
+      {/*Add to vendor */}
+      <section className="bg-violet-50 py-10">
+        <div className="max-w-7xl mx-auto px-4 md:px-6">
+          <h2 className="text-3xl font-bold mb-8  text-slate-800">
+            Showing results of All Available vendors
+          </h2>
+
+          {/* MAIN LAYOUT */}
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            {/* 🔥 LEFT SIDE - VENDORS (3 COL GRID) */}
+            <div className="lg:col-span-3">
+              <div className="flex flex-col gap-6">
+                {vendors.map((v) => (
+                  <div
+                    key={v.id}
+                    className="bg-white border-2 border-transparent hover:border-violet-500 rounded-2xl p-4 shadow-md hover:shadow-xl transition-all duration-300"
+                  >
+                    {/* MAIN ROW */}
+                    <div className="flex items-center justify-between gap-6">
+                      {/* 🖼️ IMAGE */}
+                      <div className="w-20 h-20 bg-violet-100 rounded-lg p-2 flex items-center justify-center shrink-0">
+                        <img
+                          src={v.image}
+                          className="w-full h-full object-contain"
+                          alt={v.name}
+                        />
+                      </div>
+
+                      {/* 🏷️ NAME + PRICE */}
+                      <div className="flex flex-col flex-1">
+                        <h3 className="font-bold text-xl ml-60 text-slate-800">
+                          {v.name}
+                        </h3>
+
+                        <div className="flex items-end gap-3 mt-2">
+                          {/* 🔥 BEST PRICE (FOCUS) */}
+                          <div className="flex flex-col">
+                            <span className="text-xs text-slate-500">
+                              Best Price
+                            </span>
+                            <span className="text-2xl font-bold text-slate-900">
+                              ₹{v.price}
+                            </span>
+                          </div>
+
+                          {/* ❌ MRP */}
+                          <span className="text-sm text-slate-400 line-through mb-1">
+                            ₹{v.mrp}
+                          </span>
+
+                          {/* 💚 DISCOUNT BADGE */}
+                          <span className="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-semibold mb-1">
+                            {v.discount}% OFF
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* 🚚 DELIVERY */}
+                      <div className="text-center min-w-[150px] py-5">
+                        <p className="text-sm text-violet-600 font-medium">
+                          Delivered In
+                        </p>
+                        <p className="font-semibold text-slate-800">
+                          {v.delivery}
+                        </p>
+                      </div>
+
+                      {/* 🔴 BUTTON */}
+                      <button
+                        onClick={() => handleAdd(v)}
+                        className="border-1 text-red-500 px-5 py-2 rounded-lg font-medium cursor-pointer hover:bg-red-500 hover:text-white transition-all duration-300"
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 🛒 RIGHT SIDE - CHECKOUT */}
+            <div className="lg:col-span-1">
+              {cart.length > 0 && (
+                <div className="border border-violet-500 rounded-xl p-4 bg-gray-50 sticky top-6 shadow-md w-80">
+                  <h3 className="font-bold text-lg mb-3 flex items-center justify-center w-full">
+                    Check Out Box
+                  </h3>
+
+                  <table className="w-full text-sm border border-gray-200 rounded-lg overflow-hidden">
+                    <thead className="bg-violet-100 text-slate-700">
+                      <tr>
+                        <th className="text-left px-4 py-2">Item</th>
+                        <th className="text-center px-4 py-2">Qty</th>
+                        <th className="text-center px-4 py-2">Price</th>
+                        <th className="text-center px-4 py-2">Discount</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {cart.map((item, i) => (
+                        <tr key={i} className="border-t">
+                          <td className="px-4 py-2">Medicine Name</td>
+                          <td className="px-4 py-2 text-center">2</td>
+
+                          <td className="px-4 py-2 text-center">
+                            ₹{item.price}
+                          </td>
+                          <td className="px-4 py-2 text-center">10 %</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+
+                  <div className="flex justify-between mt-4 font-semibold text-md">
+                    <span>Total</span>
+                    <span>
+                      ₹{cart.reduce((acc, item) => acc + item.price, 0)}
+                    </span>
+                  </div>
+
+                  <button className="w-full mt-4 bg-violet-900 text-white py-2 rounded-lg">
+                    Proceed to Checkout
+                  </button>
                 </div>
-              ))}
-
-          <div className="flex justify-between mt-2 font-semibold">
-            <span>Total</span>
-            <span>
-              ₹
-              {cart.reduce((acc, item) => acc + item.price, 0)}
-                </span>
+              )}
             </div>
           </div>
-        )}
-      </div>
-    </section>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-white/10  p-6 flex flex-col md:flex-row items-center justify-between gap-5 m-15">
+        {/* LEFT CONTENT */}
+        <div className="space-y-3 max-w-2xl px-15">
+          <div className="flex flex-row gap-6">
+            <h1 className="text-4xl font-semibold text-violet-500 ">
+              Download Trigo App
+
+            </h1>
+            <div className="w-14 h-14 mb-5  rounded-full shadow-xl">
+              <img
+                src="./logo.jpeg"
+                alt="network_issue"
+                className="w-full h-full object-contain rounded-full"
+              />
+            </div>{" "}
+            </div>
+          <p className="text-xl text-[#f72585]">
+            Get medicines faster, track orders, and manage your business easily
+            with the Trigo App.
+          </p>
+
+          {/* BUTTONS */}
+          <div className="flex gap-3 mt-3">
+            <button className="px-5 py-2 rounded-full border border-emerald-500 text-emerald-500 hover:bg-[#f72585] text-sm font-medium hover:text-white cursor-pointer">
+              Download App
+            </button>
+          </div>
+        </div>
+
+        {/* RIGHT IMAGE */}
+        <div className=" w-40 h-40">
+          <img
+            src="data:image/png;base64,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"
+            className="w-full h-full object-cover rounded-2xl shadow-xl cursor-pointer"
+          />
+
+          {/* GLOW EFFECT */}
+          <div className="absolute inset-0 rounded-xl bg-emerald-500/10 blur-xl"></div>
+        </div>
+      </section>
       <footer className="bg-gray-100 text-gray-700 mt-10">
         <div className="max-w-8xl mx-auto px-20 py-10 grid grid-cols-1 md:grid-cols-5 gap-8">
           {/* LEFT SECTION */}
@@ -874,10 +986,10 @@ const [filters, setFilters] = useState({
                 className="w-full h-full object-contain rounded-full"
               />
             </div>{" "}
-            <div className="text-[14px] space-y-2">
-              <p>📞 [PHONE_NUMBER ]</p>
-              <p>✉️ [EMAIL_ADDRESS]</p>
-              <p>📍 [ADDRESS]</p>
+            <div className="text-[14px] space-y-3">
+              <p>📞 +91 8800585503</p>
+              <p>✉️ Connect.trego@gmail.com</p>
+              <p>📍 5th Floor ,Block A ,NIET ,Greater Noida</p>
             </div>
           </div>
 
@@ -934,7 +1046,7 @@ const [filters, setFilters] = useState({
         {/* BOTTOM BAR */}
         <div className="border-t border-gray-300">
           <div className="max-w-7xl mx-auto px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4 text-sm">
-            <p>© 2024 Beyond UI - All rights reserved</p>
+            <p>© 2026 Beyond UI - All rights reserved</p>
 
             <div className="flex gap-4">
               <span className="cursor-pointer hover:text-black">
