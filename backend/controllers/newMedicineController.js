@@ -1,5 +1,59 @@
 const db = require("../db");
 const generateBatchNumber = require("../utils/batchNumberGenerator");
+
+/** Next batch_id from master_batch_table only (medicine_master_db_table stays null). */
+const generateNextBatchId = async (dbConn, medicineName) => {
+  const namePrefix =
+    medicineName?.trim().substring(0, 2).toUpperCase() || "XX";
+  const pattern = `${namePrefix}%`;
+
+  const [rows] = await dbConn.query(
+    `SELECT batch_id FROM master_batch_table
+     WHERE batch_id LIKE ? ORDER BY batch_id DESC LIMIT 1`,
+    [pattern],
+  );
+
+  let maxNumber = 0;
+  if (rows.length > 0) {
+    const num = parseInt(String(rows[0].batch_id).replace(namePrefix, ""), 10);
+    if (!Number.isNaN(num)) maxNumber = num;
+  }
+
+  return `${namePrefix}${String(maxNumber + 1).padStart(2, "0")}`;
+};
+
+const insertMasterBatchRow = async (
+  dbConn,
+  { medicine_id, batch_id, mrp, expiry_date, manufacturer_date, quantity },
+) => {
+  const expDate = expiry_date
+    ? new Date(expiry_date).toISOString().slice(0, 10)
+    : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .slice(0, 10);
+
+  const mfgDate = manufacturer_date
+    ? new Date(manufacturer_date).toISOString().slice(0, 10)
+    : null;
+
+  const [result] = await dbConn.query(
+    `INSERT INTO master_batch_table
+      (medicine_id, batch_id, mrp, expiry_date, manufacturer_date, quantity)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [medicine_id, batch_id, mrp ?? 0, expDate, mfgDate, quantity ?? 0],
+  );
+
+  return {
+    id: result.insertId,
+    medicine_id,
+    batch_id,
+    mrp: mrp ?? 0,
+    expiry_date: expDate,
+    manufacturer_date: mfgDate,
+    quantity: quantity ?? 0,
+  };
+};
+
 const medicineControllers = {
   /* ---------------------- ADD BUCKET ---------------------- */
   addbucket: async (req, res) => {
@@ -30,7 +84,7 @@ const medicineControllers = {
       }
 
       const sql = `
-      INSERT INTO BUCKET
+      INSERT INTO bucket
       (
         name,
         image,
@@ -71,12 +125,55 @@ const medicineControllers = {
     }
   },
 
+  /* ---------------------- DELETE BUCKET ---------------------- */
+  deleteBucket: async (req, res) => {
+    const conn = await db.getConnection();
+    try {
+      await conn.beginTransaction();
+      const { id } = req.params;
+
+      // 1. Delete from bucket_medicine_map
+      await conn.query("DELETE FROM bucket_medicine_map WHERE bucket_id = ?", [id]);
+
+      // 2. Delete or update medicines table if it exists and has references
+      try {
+        await conn.query("DELETE FROM medicines WHERE bucket_id = ?", [id]);
+      } catch (err) {
+        console.log("medicines table delete warning:", err.message);
+      }
+
+      // 3. Update any vendor_medicine referencing this bucket to set bucket_id = 0
+      try {
+        await conn.query("UPDATE vendor_medicine SET bucket_id = 0 WHERE bucket_id = ?", [id]);
+      } catch (err) {
+        console.log("vendor_medicine update warning:", err.message);
+      }
+
+      // 4. Finally, delete the bucket
+      const [result] = await conn.query("DELETE FROM bucket WHERE id = ?", [id]);
+
+      if (result.affectedRows === 0) {
+        await conn.rollback();
+        return res.status(404).json({ message: "Bucket not found" });
+      }
+
+      await conn.commit();
+      res.json({ success: true, message: "Bucket deleted successfully" });
+    } catch (err) {
+      await conn.rollback();
+      console.error("deleteBucket error:", err);
+      res.status(500).json({ message: "Server error", error: err.message });
+    } finally {
+      conn.release();
+    }
+  },
+
   /* ---------------------- GET ALL BUCKETS ---------------------- */
   getAllBucket: async (req, res) => {
     // const {bucket_id}=req.body;
     try {
       const [rows] = await db.query(
-        "SELECT bucket.*, COUNT(medicine_id) AS total_medicines FROM bucket LEFT JOIN medicine_master_db_table ON bucket.id = medicine_master_db_table.bucket_id GROUP BY bucket.id",
+        "SELECT bucket.*, COUNT(medicine_id) AS total_medicines FROM bucket LEFT JOIN bucket_medicine_map ON bucket.id =bucket_medicine_map.bucket_id GROUP BY bucket.id",
       );
 
       res.json(rows);
@@ -249,66 +346,66 @@ const medicineControllers = {
     }
   },
   /* ---------------------- ADD EXISTING MEDICINE TO BUCKET ---------------------- */
-  addMedicineToBucket: async (req, res) => {
-    try {
-      const vendor_user_id = req.user.id;
-      const { bucket_id, medicine_id, medicine_source } = req.body;
+  // addMedicineToBucket: async (req, res) => {
+  //   try {
+  //     const vendor_user_id = req.user.id;
+  //     const { bucket_id, medicine_id, medicine_source } = req.body;
 
-      if (!bucket_id || !medicine_id || !medicine_source) {
-        return res.status(400).json({
-          message: "bucket_id, medicine_id, medicine_source required",
-        });
-      }
-      const [[existingMedicine]] = await db.query(
-        `SELECT * FROM medicine_master_db_table
-       WHERE medicine_id = ? and bucket_id =?`,
-        [medicine_id, bucket_id],
-      );
-      if (existingMedicine) {
-        return res.status(409).json({
-          message: "Medicine already exists in this bucket",
-        });
-      }
-      const [[data]] = await db.query(
-        `select name from medicine_master_db_table where medicine_id=?`,
-        [medicine_id],
-      );
-      const generateBatchId = async (conn, name) => {
-        // 1. Check if ANY entry already has this medicine with a batch_id
-        const [existingBatch] = await db.query(
-          `SELECT batch_id FROM medicine_master_db_table WHERE name = ? LIMIT 1`,
-          [name],
-        );
-        if (existingBatch.length > 0) {
-          return existingBatch[0].batch_id;
-        }
+  //     if (!bucket_id || !medicine_id || !medicine_source) {
+  //       return res.status(400).json({
+  //         message: "bucket_id, medicine_id, medicine_source required",
+  //       });
+  //     }
+  //     const [[existingMedicine]] = await db.query(
+  //       `SELECT * FROM bucket_medicine_map
+  //      WHERE medicine_id = ? and bucket_id =?`,
+  //       [medicine_id, bucket_id],
+  //     );
+  //     if (existingMedicine) {
+  //       return res.status(409).json({
+  //         message: "Medicine already exists in this bucket",
+  //       });
+  //     }
+  //     const [[data]] = await db.query(
+  //       `select name from medicine_master_db_table where medicine_id=?`,
+  //       [medicine_id],
+  //     );
+      /* ---------------- BATCH ID GENERATION ---------------- */
+      // const generateBatchId = async (conn, name) => {
+        // 1. Check if ANY vendor already has this medicine with a batch_id
+      //   const [existingBatch] = await conn.query(
+      //     `SELECT batch_id FROM medicine_master_db_table WHERE name = ? LIMIT 1`,
+      //     [name],
+      //   );
+      //   if (existingBatch.length > 0) {
+      //     return existingBatch[0].batch_id;
+      //   }
 
-        const namePrefix = name?.trim().substring(0, 2).toUpperCase() || "XX";
-        const prefix = `${namePrefix}`;
-        const [rows] = await db.query(
-          `SELECT batch_id FROM medicine_master_db_table WHERE batch_id LIKE ? ORDER BY batch_id DESC LIMIT 1`,
-          [`${prefix}%`],
-        );
-        let number = 1;
-        if (rows.length > 0) {
-          const lastBatch = rows[0].batch_id;
-          const lastNumber = parseInt(lastBatch.replace(prefix, ""), 10);
-          if (!isNaN(lastNumber)) {
-            number = lastNumber + 1;
-          }
-        }
-        const sequence = String(number).padStart(2, "0");
-        return `${prefix}${sequence}`;
-      };
-
-      let batch_id = await generateBatchId(db, data.name);
-      const [[existingBatch]] = await db.query(
-        `SELECT batch_id FROM medicine_master_db_table WHERE batch_id = ?`,
-        [batch_id],
-      );
-      if (existingBatch) {
-        batch_id = existingBatch.batch_id;
-      }
+      //   const namePrefix = name?.trim().substring(0, 2).toUpperCase() || "XX";
+      //   const prefix = `${namePrefix}`;
+      //   const [rows] = await conn.query(
+      //     `SELECT batch_id FROM medicine_master_db_table WHERE batch_id LIKE ? ORDER BY batch_id DESC LIMIT 1`,
+      //     [`${prefix}%`],
+      //   );
+      //   let number = 1;
+      //   if (rows.length > 0) {
+      //     const lastBatch = rows[0].batch_id;
+      //     const lastNumber = parseInt(lastBatch.replace(prefix, ""), 10);
+      //     if (!isNaN(lastNumber)) {
+      //       number = lastNumber + 1;
+      //     }
+      //   }
+      //   const sequence = String(number).padStart(2, "0");
+      //   return `${prefix}${sequence}`;
+      // };
+      // const batch_id = await generateBatchId(db, data.name);
+      // const [[existingBatch]] = await db.query(
+      //   `SELECT batch_id FROM medicine_master_db_table WHERE batch_id = ?`,
+      //   [batch_id],
+      // );
+      // if (existingBatch) {
+      //   batch_id = existingBatch.batch_id;
+      // }
 
       // const [[exists]] = await db.query(
       //   `SELECT id FROM bucket_medicine_map
@@ -335,33 +432,207 @@ const medicineControllers = {
       /* =========================
        FETCH FROM MASTER DB
     ========================== */
-      const [[dbMed]] = await db.query(
-        `SELECT * FROM medicine_master_db_table WHERE medicine_id = ?`,
-        [medicine_id],
-      );
+      // const [[dbMed]] = await db.query(
+      //   `SELECT * FROM medicine_master_db_table WHERE medicine_id = ?`,
+      //   [medicine_id],
+      // );
 
-      if (!dbMed) {
-        return res.status(404).json({ message: "Medicine not found in DB" });
-      }
+      // if (!dbMed) {
+      //   return res.status(404).json({ message: "Medicine not found in DB" });
+      // }
 
       /* =========================
        INSERT INTO medicine_table
     ========================== */
-      await db.query(
-        `Update medicine_master_db_table set batch_id=?,  bucket_id=? where medicine_id=?;`,
-        [batch_id, bucket_id, medicine_id],
-      );
+  //     await db.query(
+  //       `Update bucket_medicine_map   bucket_id=? where medicine_id=?;`,
+  //       [batch_id, bucket_id, medicine_id],
+  //     );
 
-      res.json({
-        success: true,
-        message: "Medicine added to medicine_table successfully",
+  //     res.json({
+  //       success: true,
+  //       message: "Medicine added to medicine_table successfully",
+  //     });
+  //   } catch (err) {
+  //     console.error("addMedicineToBucket error:", err);
+  //     res.status(500).json({ message: "Server error" });
+  //   }
+  // },
+
+//   addMedicineToBucket: async (req, res) => {
+//   try {
+//     const vendor_user_id = req.user.id;
+//     const { bucket_id, medicine_id, medicine_source } = req.body;
+
+//     if (!bucket_id || !medicine_id || !medicine_source) {
+//       return res.status(400).json({
+//         message: "bucket_id, medicine_id, medicine_source required",
+//       });
+//     }
+
+//     /* ── 1. Duplicate check ── */
+//     const [[existingMedicine]] = await db.query(
+//       `SELECT id FROM bucket_medicine_map
+//        WHERE medicine_id = ? AND bucket_id = ?`,
+//       [medicine_id, bucket_id],
+//     );
+
+//     if (existingMedicine) {
+//       return res.status(409).json({
+//         message: "Medicine already exists in this bucket",
+//       });
+//     }
+
+//     /* ── 2. Fetch medicine from master table ── */
+//     const [[dbMed]] = await db.query(
+//       `SELECT * FROM medicine_master_db_table WHERE medicine_id = ?`,
+//       [medicine_id],
+//     );
+
+//     if (!dbMed) {
+//       return res.status(404).json({ message: "Medicine not found in DB" });
+//     }
+
+//     /* ── 3. Generate batch & store in master_batch_table (not medicine_master_db_table) ── */
+//     const batch_id = await generateNextBatchId(db, dbMed.name);
+
+//     const batchRow = await insertMasterBatchRow(db, {
+//       medicine_id,
+//       batch_id,
+//       mrp: dbMed.mrp ?? 0,
+//       expiry_date: dbMed.expiry_date,
+//       manufacturer_date: dbMed.manufacturer_date,
+//     });
+
+//     /* ── 4. Insert into bucket_medicine_map ── */
+//     await db.query(
+//       `INSERT INTO bucket_medicine_map
+//         (bucket_id, medicine_id, medicine_source, medicine_owner, name, vendor_user_id)
+//        VALUES (?, ?, ?, 'super_admin', ?, 0)`,
+//       [bucket_id, medicine_id, medicine_source, dbMed.name],
+//     );
+
+//     return res.status(201).json({
+//       success: true,
+//       message: "Medicine added to bucket successfully",
+//       batch_id,
+//       batch: batchRow,
+//     });
+
+//   } catch (err) {
+//     console.error("addMedicineToBucket error:", err);
+//     return res.status(500).json({ message: "Server error", error: err.message });
+//   }
+// },
+addMedicineToBucket: async (req, res) => {
+  try {
+    const vendor_user_id = req.user.id;
+    const { bucket_id, medicine_id, medicine_source } = req.body;
+
+    if (!bucket_id || !medicine_id || !medicine_source) {
+      return res.status(400).json({
+        message: "bucket_id, medicine_id, medicine_source required",
       });
-    } catch (err) {
-      console.error("addMedicineToBucket error:", err);
-      res.status(500).json({ message: "Server error" });
     }
-  },
 
+    /* ───────── 1. Check duplicate medicine in same bucket ───────── */
+    const [[existingMedicine]] = await db.query(
+      `SELECT id 
+       FROM bucket_medicine_map
+       WHERE bucket_id = ? AND medicine_id = ?`,
+      [bucket_id, medicine_id]
+    );
+
+    if (existingMedicine) {
+      return res.status(409).json({
+        message: "Medicine already exists in this bucket",
+      });
+    }
+
+    /* ───────── 2. Get medicine from master DB ───────── */
+    const [[dbMed]] = await db.query(
+      `SELECT * 
+       FROM medicine_master_db_table
+       WHERE medicine_id = ?`,
+      [medicine_id]
+    );
+
+    if (!dbMed) {
+      return res.status(404).json({
+        message: "Medicine not found",
+      });
+    }
+
+    let selectedBatch = null;
+
+    /* ───────── 3. Check existing batch first ───────── */
+    const [[existingBatch]] = await db.query(
+      `SELECT *
+       FROM master_batch_table
+       WHERE medicine_id = ?
+       ORDER BY id ASC
+       LIMIT 1`,
+      [medicine_id]
+    );
+
+    if (existingBatch) {
+      // Use first existing batch
+      selectedBatch = existingBatch;
+    } else {
+
+      /* ───────── 4. Create new batch if none exists ───────── */
+
+      const batch_id = await generateNextBatchId(db, dbMed.name);
+
+      const batchRow = await insertMasterBatchRow(db, {
+        medicine_id,
+        batch_id,
+        mrp: dbMed.mrp ?? 0,
+        expiry_date: dbMed.expiry_date,
+        manufacturer_date: dbMed.manufacturer_date,
+      });
+
+      selectedBatch = batchRow;
+    }
+
+    /* ───────── 5. Insert into bucket_medicine_map ───────── */
+    await db.query(
+      `INSERT INTO bucket_medicine_map
+      (
+        bucket_id,
+        medicine_id,
+        medicine_source,
+        medicine_owner,
+        name,
+        vendor_user_id,
+        batch_id
+      )
+      VALUES (?, ?, ?, 'super_admin', ?, ?, ?)`,
+      [
+        bucket_id,
+        medicine_id,
+        medicine_source,
+        dbMed.name,
+        vendor_user_id,
+        selectedBatch.id, // master_batch_table.id
+      ]
+    );
+
+    return res.status(201).json({
+      success: true,
+      message: "Medicine added to bucket successfully",
+      batch: selectedBatch,
+    });
+
+  } catch (err) {
+    console.error("addMedicineToBucket error:", err);
+
+    return res.status(500).json({
+      message: "Server error",
+      error: err.message,
+    });
+  }
+},
   /*adding medicine through golabal medicine list  */
   addGlobalMedicineToBucket: async (req, res) => {
     const conn = await db.getConnection();
@@ -709,6 +980,11 @@ const medicineControllers = {
   getVendorMedicineById: async (req, res) => {
     try {
       const vendor_user_id = req.user.id;
+      const [[vendor_info]] = await db.query(
+        "select vendor_id from vendor_informations where vendor_user_id=?",
+        [vendor_user_id],
+      );
+      const vendor_id = vendor_info?.vendor_id;
       const { id } = req.params;
 
       const [[medicine]] = await db.query(
@@ -717,7 +993,7 @@ const medicineControllers = {
       FROM vendor_medicine_table
       WHERE vendor_medicine_id = ? AND vendor_id = ?
       `,
-        [id, vendor_user_id],
+        [id, vendor_id],
       );
 
       if (!medicine) {
@@ -921,6 +1197,11 @@ const medicineControllers = {
   getVendorMedicinesByBucket: async (req, res) => {
     try {
       const vendor_user_id = req.user.id;
+      const [[vendor_info]] = await db.query(
+        "select vendor_id from vendor_informations where vendor_user_id=?",
+        [vendor_user_id],
+      );
+      const vendor_id = vendor_info?.vendor_id;
       const { bucket_id } = req.params;
 
       if (!bucket_id) {
@@ -936,7 +1217,6 @@ const medicineControllers = {
     select 
     vm.*,
     vp.mrp,
-    vp.selling_price,
     vp.discount,
     vp.quantity 
     from vendor_medicine as vm
@@ -946,7 +1226,7 @@ const medicineControllers = {
     and vm.vendor_id=? 
     ORDER BY vm.vendor_medicine_id ASC
       `,
-        [bucket_id, vendor_user_id],
+        [bucket_id, vendor_id],
       );
 
       res
@@ -1034,7 +1314,12 @@ const medicineControllers = {
   copyMasterMedicinesToVendor: async (req, res) => {
     const conn = await db.getConnection();
     try {
-      const vendor_user_id = req.user.id;
+      const id = req.user.id;
+      const [[vendor_info]] = await db.query(
+        "SELECT vendor_id FROM vendor_informations WHERE vendor_user_id=?",
+        [id],
+      );
+      const vendor_id = vendor_info?.vendor_id;
       const { selected_medicine_ids, bucket_id } = req.body;
 
       if (
@@ -1074,7 +1359,8 @@ const medicineControllers = {
         manufacturer_address,
         price,
         batch_id,
-        description
+        description,
+        images
       FROM medicine_master_db_table
       WHERE medicine_id IN (${placeholders})
       `,
@@ -1121,7 +1407,7 @@ const medicineControllers = {
         // Check if medicine already exists
         const [[existing]] = await conn.query(
           `SELECT vendor_medicine_id FROM vendor_medicine WHERE vendor_id = ? AND name = ? AND bucket_id = ?`,
-          [vendor_user_id, med.name, bucket_id || null],
+          [vendor_id, med.name, bucket_id || null],
         );
 
         if (!existing) {
@@ -1132,8 +1418,8 @@ const medicineControllers = {
             `INSERT INTO vendor_medicine (
               name, salt_composition, medicine_type, packing_type,
               country_of_origin, prescription_required, storage,
-              manufacture, batchNumber, vendor_id, batch_id, bucket_id, medicine_owner
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+              manufacture, batch_number, vendor_id, batch_id, bucket_id,medicine_id,medicine_owner
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
             [
               med.name,
               med.salt_composition || null,
@@ -1144,9 +1430,10 @@ const medicineControllers = {
               med.storage || null,
               med.manufacture || null,
               med.batch_id || null, // original batch number
-              vendor_user_id,
+              vendor_id,
               batch_id,
               bucket_id || null,
+              med.id,
               "super_admin",
             ],
           );
@@ -1166,7 +1453,7 @@ const medicineControllers = {
               med.discount_price || 0,
               med.offer_percent || 0,
               0,
-              vendor_user_id,
+              vendor_id,
               vendor_medicine_id,
             ],
           );
@@ -1179,17 +1466,41 @@ const medicineControllers = {
             [price_id, vendor_medicine_id],
           );
 
+          let image_1 = null, image_2 = null, image_3 = null, image_4 = null, image_5 = null;
+          if (med.images) {
+            try {
+              const parsedImages = JSON.parse(med.images);
+              if (Array.isArray(parsedImages)) {
+                image_1 = parsedImages[0] || null;
+                image_2 = parsedImages[1] || null;
+                image_3 = parsedImages[2] || null;
+                image_4 = parsedImages[3] || null;
+                image_5 = parsedImages[4] || null;
+              } else if (typeof parsedImages === 'string') {
+                image_1 = parsedImages;
+              }
+            } catch (e) {
+              image_1 = med.images;
+            }
+          }
+
           // 3. Insert into vendor_medicine_information
           await conn.query(
             `INSERT INTO vendor_medicine_information (
-              vendor_medicine_id, batch_id, manufacturer_address, description, packing
-            ) VALUES (?,?,?,?,?)`,
+              vendor_medicine_id, batch_id, manufacturer_address, description, packing,
+              image_1, image_2, image_3, image_4, image_5
+            ) VALUES (?,?,?,?,?,?,?,?,?,?)`,
             [
               vendor_medicine_id,
               batch_id,
               med.manufacturer_address || null,
               med.description || null,
               med.packaging || null,
+              image_1,
+              image_2,
+              image_3,
+              image_4,
+              image_5
             ],
           );
 
@@ -1863,48 +2174,106 @@ const medicineControllers = {
     }
   },
 
-  // getMedicineThroughBucketId: async (req, res) => {
-  //   try {
-  //     const { bucket_id } = req.params;
-  //     const query = `select b.batch_id, medicine.medicine_id, name,p.manufacturer_date,salt_composition,packing_type,manufacture,country_of_origin,prescription_required,
-  //     p.mrp from medicine left join batch as b
-  //     on b.medicine_id=medicine.medicine_id left join prices as p on p.price_id=b.price_id where medicine.bucket_id=?`;
-  //     const [result] = await db.query(query, [bucket_id]);
-  //     console.log(result);
-  //     return res
-  //       .status(200)
-  //       .json({ msg: "Medicines from Bucket get successfull", data: result });
-  //   } catch (err) {
-  //     return res.status(500).json({ msg: "server error", error: err });
-  //   }
-  // },
   getMedicineThroughBucketId: async (req, res) => {
-    try {
-      const { bucket_id } = req.params;
-      const query = `select b.name as bucket_name, medicine_master_db_table.* from medicine_master_db_table left join bucket as b on medicine_master_db_table.bucket_id=b.id where bucket_id=?`;
-      const [result] = await db.query(query, [bucket_id]);
-      console.log(result);
-      return res
-        .status(200)
-        .json({ msg: "Medicines from Bucket get successfull", data: result });
-    } catch (err) {
-      return res.status(500).json({ msg: "server error", error: err });
-    }
-  },
-  getMedicineDetails: async (req, res) => {
-    try {
-      const { medicine_id } = req.params;
-      const query = `select * from medicine_master_db_table where medicine_id=? `;
+  try {
+    const { bucket_id } = req.params;
 
-      const [result] = await db.query(query, [medicine_id]);
+    const query = `
+      SELECT
+        b.name AS bucket_name,
+        mb.batch_id,
+        mb.medicine_id,
+        mm.name,
+        mm.salt_composition,
+        mm.packing_type,
+        mm.manufacture,
+        mb.mrp,
+        mb.expiry_date,
+        mb.manufacturer_date,
+        mm.prescription_required
+      FROM bucket_medicine_map AS bm
+      INNER JOIN medicine_master_db_table AS mm ON bm.medicine_id = mm.medicine_id
+      LEFT JOIN bucket AS b ON b.id = bm.bucket_id
+      LEFT JOIN master_batch_table AS mb ON mb.id = (
+        SELECT MAX(mb2.id)
+        FROM master_batch_table AS mb2
+        WHERE mb2.medicine_id = mm.medicine_id
+      )
+      WHERE bm.bucket_id = ?
+    `;
 
-      return res
-        .status(200)
-        .json({ msg: "data recieved successfully", data: result });
-    } catch (err) {
-      return res.status(500).json({ msg: "server error", data: err });
-    }
-  },
+    const [result] = await db.query(query, [bucket_id]);
+
+    return res.status(200).json({
+      msg: "Medicines from Bucket fetched successfully",
+      data: result,
+    });
+
+  } catch (err) {
+    console.error("getMedicineThroughBucketId error:", err);
+    return res.status(500).json({ msg: "Server error", error: err });
+  }
+},
+  
+getMedicineDetails: async (req, res) => {
+  try {
+    const { medicine_id, batch_id, bucket_id } = req.params;
+
+    const query = `
+      SELECT 
+        mb.batch_id,
+        mb.medicine_id,
+        mm.name,
+        mm.manufacturer_address,
+        mm.safety_advice,
+        mm.question_answers,
+        mm.medicine_type,
+        mm.pregnancy_interaction,
+        mm.images,
+        bm.bucket_id,
+        mm.lactation_interaction,
+        mm.common_side_effect,
+        mm.how_it_works,
+        mm.introduction,
+        mm.salt_composition,
+        mm.packing_type,
+        mm.manufacture,
+        mb.mrp,
+        mb.expiry_date,
+        mb.manufacturer_date,
+        mm.prescription_required
+      FROM bucket_medicine_map AS bm
+      LEFT JOIN medicine_master_db_table AS mm
+        ON bm.medicine_id = mm.medicine_id
+      LEFT JOIN bucket AS b
+        ON b.id = bm.bucket_id
+      LEFT JOIN master_batch_table AS mb
+        ON mm.medicine_id = mb.medicine_id
+      WHERE mb.medicine_id = ?
+        AND mb.batch_id = ?
+        AND bm.bucket_id = ?
+    `;
+
+    const [result] = await db.query(query, [
+      medicine_id,
+      batch_id,
+      bucket_id
+    ]);
+
+    return res.status(200).json({
+      msg: "data received successfully",
+      data: result
+    });
+
+  } catch (err) {
+    console.log(err);
+
+    return res.status(500).json({
+      msg: "server error",
+      error: err.message
+    });
+  }
+},
   //medicine price detail through medicine and batch id
   getMedicinePriceDetail: async (req, res) => {
     try {
@@ -1952,6 +2321,7 @@ const medicineControllers = {
         selling_price,
         expiry_date,
         quantity,
+        manufacturer_date
       } = req.body;
 
       if (!mrp || !cost_price || !quantity) {
@@ -1974,7 +2344,8 @@ const medicineControllers = {
         offer_percent = ?,
         cost_price = ?,
         expiry_date = ?,
-        quantity = ?
+        quantity = ?,
+        manufacturer_date=?
       WHERE medicine_id = ?
     `;
 
@@ -1986,6 +2357,7 @@ const medicineControllers = {
         cost_price,
         expiry_dates,
         quantity,
+        manufacturer_date,
         medicine_id,
       ]);
 
@@ -2122,7 +2494,7 @@ const medicineControllers = {
         `INSERT INTO medicine_master_db_table (
         batch_id,
         bucket_id,
-        batchNumber,
+        batch_number,
         name,
         salt_composition,
         medicine_type,
@@ -2162,7 +2534,7 @@ const medicineControllers = {
         created_at
       ) VALUES (?, ?,?,?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
         [
-          batch_id,
+          null,
           0,
           batchNumber,
           name,
@@ -2315,6 +2687,11 @@ const medicineControllers = {
   getVendorMedicineById: async (req, res) => {
     try {
       const vendor_user_id = req.user.id;
+      const [[vendor_info]] = await db.query(
+        "select vendor_id from vendor_informations where vendor_user_id=?",
+        [vendor_user_id],
+      );
+      const vendor_id = vendor_info?.vendor_id;
       const { id } = req.params;
       const [[rows]] = await db.query(
         `
@@ -2324,7 +2701,7 @@ const medicineControllers = {
         LEFT JOIN vendor_medicine_information vi ON vm.vendor_medicine_id = vi.vendor_medicine_id
         WHERE vm.vendor_id = ? AND vm.vendor_medicine_id = ?
         `,
-        [vendor_user_id, id],
+        [vendor_id, id],
       );
       res.json({ msg: "Vendor Medicine Fetched Successfully", data: rows });
     } catch (err) {
@@ -2334,9 +2711,13 @@ const medicineControllers = {
   },
   addVendorMedicine: async (req, res) => {
     try {
-      const vendor_id = req.user.id;
+      const id = req.user.id;
       const { bucket_id } = req.params;
-
+      const [[vendor_info]] = await db.query(
+        "select vendor_id from vendor_informations where vendor_user_id=?",
+        [id],
+      );
+      const vendor_id = vendor_info?.vendor_id;
       const {
         name,
         salt_composition,
@@ -2436,7 +2817,7 @@ const medicineControllers = {
         `INSERT INTO vendor_medicine
       (name, salt_composition, medicine_type, packing_type,
        country_of_origin, prescription_required, storage,
-       manufacture, batchNumber, vendor_id, batch_id, bucket_id)
+       manufacture, batch_number, vendor_id, batch_id, bucket_id)
       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
         [
           name,
@@ -2539,6 +2920,11 @@ const medicineControllers = {
     try {
       const { id } = req.params; // vendor_medicine_id
       const vendor_user_id = req.user.id;
+      const [[vendor_info]] = await db.query(
+        "select vendor_id from vendor_informations where vendor_user_id=?",
+        [vendor_user_id],
+      );
+      const vendor_id = vendor_info?.vendor_id;
       const {
         mrp,
         cost_price,
@@ -2566,7 +2952,7 @@ const medicineControllers = {
           expiry_date || null,
           manufacturer_date || null,
           id,
-          vendor_user_id,
+          vendor_id,
         ],
       );
 
@@ -2578,23 +2964,43 @@ const medicineControllers = {
   },
 
   deleteVendorMedicine: async (req, res) => {
+    const conn = await db.getConnection();
     try {
+      await conn.beginTransaction();
+
       const { id } = req.params;
       const vendor_user_id = req.user.id;
+      const [[vendor_info]] = await conn.query(
+        "select vendor_id from vendor_informations where vendor_user_id=?",
+        [vendor_user_id],
+      );
+      const vendor_id = vendor_info?.vendor_id;
+
+      // Check if this medicine is referenced in orders (or order_items)
+      const [[orderRef]] = await conn.query(
+        "SELECT COUNT(*) as count FROM order_items WHERE vendor_medicine_id = ?",
+        [id]
+      );
+      if (orderRef && orderRef.count > 0) {
+        await conn.rollback();
+        return res.status(409).json({
+          message: "Cannot delete this medicine because it is associated with existing orders. You can set its quantity/stock to 0 to make it unavailable.",
+        });
+      }
 
       // 1. Break the circular dependency link: vendor_medicine <-> vendor_medicine_price
       // We set price_id to NULL so that vendor_medicine no longer "protects" the price row from deletion.
-      await db.query(
+      await conn.query(
         "UPDATE vendor_medicine SET price_id = NULL WHERE vendor_medicine_id = ? AND vendor_id = ?",
-        [id, vendor_user_id],
+        [id, vendor_id],
       );
 
       // 2. Delete other related records that depend on the medicine_id
-      await db.query(
+      await conn.query(
         "DELETE FROM vendor_discounts_offers WHERE vendor_medicine_id = ?",
         [id],
       );
-      await db.query(
+      await conn.query(
         "DELETE FROM vendor_medicine_information WHERE vendor_medicine_id = ?",
         [id],
       );
@@ -2602,20 +3008,37 @@ const medicineControllers = {
       // 3. Delete from the price table
       // This is now safe from the first constraint (medicine -> price)
       // And we do this BEFORE deleting vendor_medicine to satisfy the second constraint (price -> medicine)
-      await db.query(
+      await conn.query(
         "DELETE FROM vendor_medicine_price WHERE vendor_medicine_id = ? AND vendor_id = ?",
-        [id, vendor_user_id],
+        [id, vendor_id],
       );
 
       // 4. Finally, delete the main medicine record
-      await db.query(
+      const [result] = await conn.query(
         "DELETE FROM vendor_medicine WHERE vendor_medicine_id = ? AND vendor_id = ?",
-        [id, vendor_user_id],
+        [id, vendor_id],
       );
+
+      if (result.affectedRows === 0) {
+        await conn.rollback();
+        return res.status(404).json({
+          message: "Medicine not found or unauthorized",
+        });
+      }
+
+      await conn.commit();
       res.json({ message: "Medicine Deleted Successfully" });
     } catch (err) {
+      await conn.rollback();
       console.error("deleteVendorMedicine error:", err);
+      if (err.errno === 1451 || err.code === 'ER_ROW_IS_REFERENCED_2') {
+        return res.status(409).json({
+          message: "Cannot delete this medicine because it is associated with existing orders. You can set its quantity/stock to 0 to make it unavailable.",
+        });
+      }
       res.status(500).json({ message: "Server error", error: err.message });
+    } finally {
+      conn.release();
     }
   },
 
@@ -2675,7 +3098,7 @@ const medicineControllers = {
             `INSERT INTO vendor_medicine (
               name, salt_composition, medicine_type, packing_type,
               country_of_origin, prescription_required, storage,
-              manufacture, batchNumber, vendor_id, batch_id, bucket_id, medicine_owner
+              manufacture, batch_number, vendor_id, batch_id, bucket_id, medicine_owner
             ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
             [
               med.name || "Na",
@@ -2749,6 +3172,8 @@ const medicineControllers = {
   addBucketMedicineToVendorBucket: async (req, res) => {
     try {
       const vendor_user_id = req.user.id;
+      const[[vendor_info]]=await db.query("select vendor_id from vendor_informations where vendor_user_id=?",[vendor_user_id])
+      const vendor_id=vendor_info?.vendor_id;
       const { bucket_id } = req.params;
       if (!bucket_id) {
         return res.status(400).json({
@@ -2758,135 +3183,185 @@ const medicineControllers = {
       console.log("USER ID:", vendor_user_id);
       console.log("BUCKET ID:", bucket_id);
 
+      // Fetch medicines via bucket_medicine_map joined with bucket + medicine_master_db_table
+      // md.* is selected last so it shadows any same-named bm columns (name, medicine_id, etc.)
+      // keeping all existing datas.xxx insert references valid
       const [data] = await db.query(
-        ` select * from medicine_master_db_table where bucket_id=?`,
+        `SELECT
+          bm.id            AS bm_id,
+          bm.medicine_source,
+          bm.medicine_owner AS bm_medicine_owner,
+          bm.is_bucket,
+          bm.packaging     AS bm_packaging,
+          b.name           AS bucket_name,
+          md.*
+        FROM bucket_medicine_map AS bm
+        LEFT JOIN bucket                   AS b  ON b.id         = bm.bucket_id
+        LEFT JOIN medicine_master_db_table AS md ON md.medicine_id = bm.medicine_id
+        WHERE bm.bucket_id = ?`,
         [bucket_id],
       );
 
       for (let datas of data) {
-        const [medicineData] = await db.query(
-          `Insert into vendor_medicine(
-                name,
-                salt_composition, 
-                medicine_type , 
-                packing_type, 
-                country_of_origin, 
-                prescription_required, 
-                storage , 
-                manufacture ,
-                batchNumber ,
-                bucket_id  ,
-                vendor_id ,
-                batch_id ,
-                medicine_owner)values(?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-          [
-            datas.name,
-            datas.salt_composition,
-            datas.medicine_type,
-            datas.packing_type,
-            datas.country_of_origin,
-            datas.prescription_required,
-            datas.storage,
-            datas.manufacture,
-            datas.batchNumber,
-            bucket_id,
-            vendor_user_id,
-            datas.batch_id,
-            "super_admin",
-          ],
-        );
-        const vendorMedicineId = medicineData.insertId;
-
-        const [priceData] = await db.query(
-          `Insert into vendor_medicine_price(
-                    mrp, 
-                    discount, 
-                    selling_price, 
-                    offer_percent, 
-                    bought, 
-                    cost_price, 
-                    expiry_date, 
-                    quantity, 
-                    manufacturer_date, 
-                    vendor_id, 
-                    vendor_medicine_id
-                    )values(?,?,?,?,?,?,?,?,?,?,?)`,
-          [
-            datas.mrp || 0,
-            datas.discount || 0,
-            datas.selling_price || 0,
-            datas.offer_percent || 0,
-            datas.bought || 0,
-            datas.cost_price || 0,
-            datas.expiry_date,
-            datas.quantity,
-            datas.manufacturer_date,
-            vendor_user_id,
-            vendorMedicineId,
-          ],
-        );
-        const priceId = priceData.insertId;
-
-        await db.query(
-          `UPDATE vendor_medicine SET price_id = ? WHERE vendor_medicine_id = ?`,
-          [priceId, vendorMedicineId],
+        // Check if medicine already exists for this vendor and bucket
+        const [[existing]] = await db.query(
+          `SELECT vendor_medicine_id FROM vendor_medicine WHERE vendor_id = ? AND name = ? AND bucket_id = ?`,
+          [vendor_id, datas.name, bucket_id || null],
         );
 
-        await db.query(
-          `Insert into vendor_medicine_information(
-                vendor_medicine_id,  
-                batch_id,
-                manufacturer_address,
-                image_1,
-                image_2,
-                image_3,
-                image_4,
-                image_5,  
-                alcohol_interaction,
-                common_side_effect,
-                description,
-                driving_interaction,  
-                how_it_works,
-                if_miss,
-                introduction,
-                kidney_interaction,  
-                lactation_interaction,
-                liver_interaction,  
-                pregnancy_interaction,  
-                question_answers , 
-                safety_advice,  
-                use_of,
-                packing
-                )values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-          [
-            vendorMedicineId,
-            datas.batch_id,
-            datas.manufacturer_address || null,
-            datas.image_1 || null,
-            datas.image_2 || null,
-            datas.image_3 || null,
-            datas.image_4 || null,
-            datas.image_5 || null,
-            datas.alcohol_interaction || null,
-            datas.common_side_effect || null,
-            datas.description || null,
-            datas.driving_interaction || null,
-            datas.how_it_works || null,
-            datas.if_miss || null,
-            datas.introduction || null,
-            datas.kidney_interaction || null,
-            datas.lactation_interaction || null,
-            datas.liver_interaction || null,
-            datas.pregnancy_interaction || null,
-            datas.question_answers || null,
-            datas.safety_advice || null,
-            datas.use_of || null,
-            datas.packing || null,
-          ],
-        );
+        if (!existing) {
+          const [medicineData] = await db.query(
+            `Insert into vendor_medicine(
+                  name,
+                  salt_composition, 
+                  medicine_type , 
+                  packing_type, 
+                  country_of_origin, 
+                  prescription_required, 
+                  storage , 
+                  manufacture ,
+                  batch_number ,
+                  bucket_id  ,
+                  vendor_id ,
+                  medicine_id,
+                  batch_id ,
+                  medicine_owner)values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+            [
+              datas.name,
+              datas.salt_composition,
+              datas.medicine_type,
+              datas.packing_type,
+              datas.country_of_origin,
+              datas.prescription_required,
+              datas.storage,
+              datas.manufacture,
+              datas.batchNumber,
+              bucket_id,
+              vendor_id,
+              datas.medicine_id,
+              datas.batch_id,
+              "super_admin",
+            ],
+          );
+          const vendorMedicineId = medicineData.insertId;
+
+          const [priceData] = await db.query(
+            `Insert into vendor_medicine_price(
+                      mrp, 
+                      discount, 
+                      selling_price, 
+                      offer_percent, 
+                      bought, 
+                      cost_price, 
+                      expiry_date, 
+                      quantity, 
+                      manufacturer_date, 
+                      vendor_id, 
+                      vendor_medicine_id
+                      )values(?,?,?,?,?,?,?,?,?,?,?)`,
+            [
+              datas.mrp || 0,
+              datas.discount || 0,
+              datas.selling_price || 0,
+              datas.offer_percent || 0,
+              datas.bought || 0,
+              datas.cost_price || 0,
+              datas.expiry_date,
+              datas.quantity,
+              datas.manufacturer_date,
+              vendor_id,
+              vendorMedicineId,
+            ],
+          );
+          const priceId = priceData.insertId;
+
+          await db.query(
+            `UPDATE vendor_medicine SET price_id = ? WHERE vendor_medicine_id = ?`,
+            [priceId, vendorMedicineId],
+          );
+
+          let image_1 = null, image_2 = null, image_3 = null, image_4 = null, image_5 = null;
+          if (datas.images) {
+            try {
+              const parsedImages = JSON.parse(datas.images);
+              if (Array.isArray(parsedImages)) {
+                image_1 = parsedImages[0] || null;
+                image_2 = parsedImages[1] || null;
+                image_3 = parsedImages[2] || null;
+                image_4 = parsedImages[3] || null;
+                image_5 = parsedImages[4] || null;
+              } else if (typeof parsedImages === 'string') {
+                image_1 = parsedImages;
+              }
+            } catch (e) {
+              image_1 = datas.images;
+            }
+          }
+
+          await db.query(
+            `Insert into vendor_medicine_information(
+                  vendor_medicine_id,  
+                  batch_id,
+                  manufacturer_address,
+                  image_1,
+                  image_2,
+                  image_3,
+                  image_4,
+                  image_5,  
+                  alcohol_interaction,
+                  common_side_effect,
+                  description,
+                  driving_interaction,  
+                  how_it_works,
+                  if_miss,
+                  introduction,
+                  kidney_interaction,  
+                  lactation_interaction,
+                  liver_interaction,  
+                  pregnancy_interaction,  
+                  question_answers , 
+                  safety_advice,  
+                  use_of,
+                  packing
+                  )values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+            [
+              vendorMedicineId,
+              datas.batch_id,
+              datas.manufacturer_address || null,
+              image_1,
+              image_2,
+              image_3,
+              image_4,
+              image_5,
+              datas.alcohol_interaction || null,
+              datas.common_side_effect || null,
+              datas.description || null,
+              datas.driving_interaction || null,
+              datas.how_it_works || null,
+              datas.if_miss || null,
+              datas.introduction || null,
+              datas.kidney_interaction || null,
+              datas.lactation_interaction || null,
+              datas.liver_interaction || null,
+              datas.pregnancy_interaction || null,
+              datas.question_answers || null,
+              datas.safety_advice || null,
+              datas.use_of || null,
+              datas.packing || null,
+            ],
+          );
+
+          // Stamp vendor_user_id on the bucket_medicine_map row so it knows which vendor copied it
+          await db.query(
+            `UPDATE bucket_medicine_map
+             SET vendor_user_id = ?
+             WHERE medicine_id = ? AND bucket_id = ?`,
+            [vendor_id, datas.medicine_id, bucket_id],
+          );
+        }
       }
 
-      res.status(200).json({ message: "Medicine Added To Vendor Bucket" });
+      res.status(200).json({ message: "Medicine Added To Vendor Bucket" ,data:data});
     } catch (err) {
       console.error("Get Vendor Medicines By Bucket Error:", err);
       res.status(500).json({
@@ -2894,6 +3369,258 @@ const medicineControllers = {
       });
     }
   },
+
+  createNewBatchId: async (req, res) => {
+    try {
+
+      const { mrp, expiry_date, manufacturer_date, medicine_id, quantity } = req.body;
+
+      if (!medicine_id || mrp == null || mrp === "" || !expiry_date) {
+        return res.status(400).json({
+          message: "medicine_id, mrp, and expiry_date are required",
+        });
+      }
+
+      const expiry = new Date(expiry_date);
+      if (Number.isNaN(expiry.getTime())) {
+        return res.status(400).json({ message: "Invalid expiry_date" });
+      }
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (expiry <= today) {
+        return res.status(400).json({
+          message: "Expiry date must be greater than current date",
+        });
+      }
+
+      const [[medicine]] = await db.query(
+        `SELECT medicine_id, name FROM medicine_master_db_table WHERE medicine_id = ?`,
+        [medicine_id],
+      );
+
+      if (!medicine) {
+        return res.status(404).json({
+          message: "Medicine not found in medicine_master_db_table",
+        });
+      }
+
+      const batch_id = await generateNextBatchId(db, medicine.name);
+
+      const [[duplicate]] = await db.query(
+        `SELECT id FROM master_batch_table
+         WHERE medicine_id = ? AND batch_id = ?`,
+        [medicine_id, batch_id],
+      );
+      if (duplicate) {
+        return res.status(409).json({
+          message: "Batch already exists for this medicine",
+          batch_id,
+        });
+      }
+
+      const batchRow = await insertMasterBatchRow(db, {
+        medicine_id,
+        batch_id,
+        mrp,
+        expiry_date,
+        manufacturer_date,
+        quantity,
+      });
+
+      return res.status(201).json({
+        message: "Batch created successfully",
+        data: batchRow,
+      });
+    } catch (err) {
+      console.error("Create New Batch Id Error:", err);
+      return res.status(500).json({
+        message: "Server error",
+        error: err.message,
+      });
+    }
+  },
+
+  getMasterBatchesByMedicine: async (req, res) => {
+    try {
+      const { medicine_id } = req.params;
+      const [rows] = await db.query(
+        `SELECT * FROM master_batch_table
+         WHERE medicine_id = ?
+         ORDER BY created_at DESC`,
+        [medicine_id],
+      );
+      return res.status(200).json({
+        message: "Batches fetched successfully",
+        data: rows,
+      });
+    } catch (err) {
+      console.error("getMasterBatchesByMedicine error:", err);
+      return res.status(500).json({ message: "Server error", error: err.message });
+    }
+  },
+
+  // Update a batch in master_batch_table
+  updateMasterBatch: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { quantity, mrp, expiry_date, manufacturer_date } = req.body;
+
+      // Check batch exists
+      const [[existing]] = await db.query(
+        `SELECT id FROM master_batch_table WHERE id = ?`,
+        [id],
+      );
+      if (!existing) {
+        return res.status(404).json({ message: "Batch not found" });
+      }
+
+      // Build dynamic SET clause — only update fields that are provided
+      const updates = [];
+      const values = [];
+
+      if (quantity !== undefined && quantity !== null) {
+        updates.push("quantity = ?");
+        values.push(Number(quantity));
+      }
+      if (mrp !== undefined && mrp !== null) {
+        updates.push("mrp = ?");
+        values.push(Number(mrp));
+      }
+      if (expiry_date !== undefined) {
+        updates.push("expiry_date = ?");
+        values.push(expiry_date ? new Date(expiry_date).toISOString().slice(0, 10) : null);
+      }
+      if (manufacturer_date !== undefined) {
+        updates.push("manufacturer_date = ?");
+        values.push(manufacturer_date ? new Date(manufacturer_date).toISOString().slice(0, 10) : null);
+      }
+
+      if (updates.length === 0) {
+        return res.status(400).json({ message: "No fields provided to update" });
+      }
+
+      values.push(id);
+      await db.query(
+        `UPDATE master_batch_table SET ${updates.join(", ")} WHERE id = ?`,
+        values,
+      );
+
+      // Return updated row
+      const [[updated]] = await db.query(
+        `SELECT * FROM master_batch_table WHERE id = ?`,
+        [id],
+      );
+
+      return res.status(200).json({
+        message: "Batch updated successfully",
+        data: updated,
+      });
+    } catch (err) {
+      console.error("updateMasterBatch error:", err);
+      return res.status(500).json({ message: "Server error", error: err.message });
+    }
+  },
+
+  // Delete a batch from master_batch_table
+  deleteMasterBatch: async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      // Check batch exists
+      const [[existing]] = await db.query(
+        `SELECT id, batch_id FROM master_batch_table WHERE id = ?`,
+        [id],
+      );
+      if (!existing) {
+        return res.status(404).json({ message: "Batch not found" });
+      }
+
+      await db.query(
+        `DELETE FROM master_batch_table WHERE id = ?`,
+        [id],
+      );
+
+      return res.status(200).json({
+        message: `Batch ${existing.batch_id} deleted successfully`,
+      });
+    } catch (err) {
+      console.error("deleteMasterBatch error:", err);
+      return res.status(500).json({ message: "Server error", error: err.message });
+    }
+  },
+  updateQuantityInSpecificBatchId:async(req,res)=>{
+    try{
+      const {batch_id,medicine_id}=req.params;
+      const {quantity}=req.body;
+      if(quantity<0){
+        return res.status(400).json({msg:"Quantity should be greater than 0"});
+      }
+      await db.query(`update master_batch_table set quantity=? where id= ? and medicine_id=? `,[quantity,batch_id,medicine_id]);
+      return res.status(200).json({msg:"Update the quantity successfully"});
+    }catch(err){
+            console.error("MasterBatch error:", err);
+      return res.status(500).json({ message: "Server error", error: err.message });
+
+    }
+  },
+  deleteInSpecificBatchId:async(req,res)=>{
+    try{
+      const {batch_id,medicine_id}=req.params;
+      await db.query(`delete from master_batch_table where medicine_id=? and id=? `,[medicine_id,batch_id]);
+      return res.status(200).json({msg:"Delete the quantity successfully"});
+    }catch(err){
+            console.error("MasterBatch error:", err);
+      return res.status(500).json({ message: "Server error", error: err.message });
+
+    }
+  },
+  createNewBatchByVendor:async(req,res)=>{
+    try{
+      const vendor_user_id=req.user.id;
+      const{mrp,medicine_id,expiry_date,manufacturer_date,discount,quantity}=req.body;
+
+      const[[medicine_name]]=await db.query(`select name from medicine_master_db_table where medicine_id=?`,[medicine_id]);
+
+      const batch_id = await generateNextBatchId(db, medicine_name);
+
+      const [[duplicate]] = await db.query(
+        `SELECT id FROM master_batch_table
+         WHERE medicine_id = ? AND batch_id = ?`,
+        [medicine_id, batch_id],
+      );
+      if (duplicate) {
+        return res.status(409).json({
+          message: "Batch already exists for this medicine",
+          batch_id,
+        });
+      }
+
+      const [[batchId]]=await db.query(`insert into master_batch_table (medicine_id,batch_id,mrp,quantity,expiry_date,manufacturer_date,created_by)values(?,?,?,0,?,?,"vendor")`,
+        medicine_id,
+        batch_id,
+        mrp,
+        expiry_date,
+        manufacturer_date
+      )
+
+      const id=batchId.insertId;
+
+      await db.query(`insert into vendor_medicine_price (batch_id,mrp,quantity,vendor_id,vendor_medicine_id,discount) values(?,?,?,?,?,?)`,[
+        id,
+        mrp,
+        quantity,
+        vendor_user_id,
+        medicine_id,
+        discount
+      ])
+      return res.status(200).json({msg:"Batch created Successfully"});
+    }catch(err){
+      return res.status(500).json({ message: "Server error", error: err.message });
+
+    }
+  }
+
 };
 
-module.exports = medicineControllers;
+module.exports = {medicineControllers};
