@@ -14,8 +14,8 @@ import {
 // import { FaEye, FaEdit, FaTrash } from "react-icons/fa";
 import axios from "axios";
 import { useParams, useNavigate } from "react-router-dom";
-import AddMedicineFromDBModal from "../AddMedicineFromDBModal";
-
+import AddMedicineFromDBModal from "../AddMedicineFromDBModal.jsx";
+import BatchModal from "../../../resuable/BatchModal.jsx";
 /* ------------ Modal Helper ------------- */
 function useOutsideClose(ref, onClose) {
   useEffect(() => {
@@ -26,18 +26,20 @@ function useOutsideClose(ref, onClose) {
     function onEsc(e) {
       if (e.key === "Escape") onClose?.();
     }
-    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("click", onDoc);
     document.addEventListener("keydown", onEsc);
 
     return () => {
-      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("click", onDoc);
       document.removeEventListener("keydown", onEsc);
     };
   }, [ref, onClose]);
 }
 
 /* ----Price Edit Modal---- */
-function PriceEditModal({ initial, onClose, onSubmit }) {
+function PriceEditModal({ initial, onClose, onSubmit, onCreateBatch }) {
+  const [openBatchModal, setOpenBatchModal] = useState(false);
+
   const boxRef = useRef(null);
   useOutsideClose(boxRef, onClose);
 
@@ -73,14 +75,22 @@ function PriceEditModal({ initial, onClose, onSubmit }) {
     onClose();
   };
 
+  // const handleCreateBatch = () => {
+  //   setOpenBatchModal(true);
+  // };
+
   return (
     <div className="fixed inset-0 z-[2000] grid place-items-center bg-black/50 p-4">
-      <div ref={boxRef} className="bg-white p-6 rounded-xl w-full max-w-md shadow-2xl border border-slate-200">
+      <div
+        ref={boxRef}
+        className="bg-white p-6 rounded-xl w-full max-w-md shadow-2xl border border-slate-200"
+      >
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl text-violet-600 font-bold">
-            Update Price
-          </h2>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-full transition-colors cursor-pointer">
+          <h2 className="text-xl text-violet-600 font-bold">Update Price</h2>
+          <button
+            onClick={onClose}
+            className="p-1 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
+          >
             <X size={20} className="text-gray-500" />
           </button>
         </div>
@@ -94,35 +104,107 @@ function PriceEditModal({ initial, onClose, onSubmit }) {
         </div>
 
         <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4">
-          <Input name="mrp" label="MRP *" value={form.mrp} onChange={handleChange} type="number" />
-          <Input name="cost_price" label="Cost Price" value={form.cost_price} onChange={handleChange} type="number" />
-          <Input name="selling_price" label="Selling Price" value={form.selling_price} onChange={handleChange} type="number" />
-          <Input name="discount" label="Discount %" value={form.discount} onChange={handleChange} type="number" />
-          <Input name="offer_percent" label="Offer %" value={form.offer_percent} onChange={handleChange} type="number" />
-          <Input name="quantity" label="Quantity" value={form.quantity} onChange={handleChange} type="number" />
+          <Input
+            name="mrp"
+            label="MRP *"
+            value={form.mrp}
+            onChange={handleChange}
+            type="number"
+          />
+          <Input
+            name="cost_price"
+            label="Cost Price"
+            value={form.cost_price}
+            onChange={handleChange}
+            type="number"
+          />
+          <Input
+            name="selling_price"
+            label="Selling Price"
+            value={form.selling_price}
+            onChange={handleChange}
+            type="number"
+          />
+          <Input
+            name="discount"
+            label="Discount %"
+            value={form.discount}
+            onChange={handleChange}
+            type="number"
+          />
+          <Input
+            name="offer_percent"
+            label="Offer %"
+            value={form.offer_percent}
+            onChange={handleChange}
+            type="number"
+          />
+          <Input
+            name="quantity"
+            label="Quantity"
+            value={form.quantity}
+            onChange={handleChange}
+            type="number"
+          />
 
-          <Input type="date" name="expiry_date" label="Expiry Date" value={form.expiry_date} onChange={handleChange} />
-          <Input type="date" name="manufacturer_date" label="Manufacturer Date" value={form.manufacturer_date} onChange={handleChange} />
+          <Input
+            type="date"
+            name="expiry_date"
+            label="Expiry Date"
+            value={form.expiry_date}
+            onChange={handleChange}
+          />
+          <Input
+            type="date"
+            name="manufacturer_date"
+            label="Manufacturer Date"
+            value={form.manufacturer_date}
+            onChange={handleChange}
+          />
         </form>
 
         <div className="flex justify-end gap-3 pt-6 mt-2 border-t border-gray-100">
-          <button 
-            onClick={onClose} 
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setOpenBatchModal(true);
+            }}
+            className="px-4 py-2 text-sm font-medium text-emerald-600 border-1 border-emerald-600 rounded-lg cursor-pointer"
+          >
+            Create New Batch
+          </button>
+
+          <button
+            type="button"
+            onClick={handleSubmit}
+            className="px-4 py-2 text-sm font-medium text-emerald-600 border-1 border-emerald-600 rounded-lg hover:bg-emerald-700 transition-all cursor-pointer"
+          >
+            Update Price
+          </button>
+          <button
+            onClick={onClose}
             className="px-4 py-2 text-sm font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 hover:border-red-300 transition-all cursor-pointer"
           >
             Cancel
           </button>
-          <button 
-            onClick={handleSubmit} 
-            className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 shadow-md shadow-emerald-200 transition-all cursor-pointer"
-          >
-            Update Price
-          </button>
         </div>
       </div>
+      {openBatchModal && (
+        <BatchModal
+          medicineId={initial.medicine_id}
+          onClose={() => setOpenBatchModal(false)}
+          onSuccess={() => {
+            setOpenBatchModal(false);
+          }}
+        />
+      )}
     </div>
+
   );
+
 }
+
 /* ------------ Add/Edit Medicine Modal ------------- */
 function MedicineModal({ mode = "add", initial = {}, onClose, onSubmit }) {
   const boxRef = useRef(null);
@@ -342,337 +424,337 @@ function MedicineModal({ mode = "add", initial = {}, onClose, onSubmit }) {
                 value={form.name}
                 onChange={handleChange}
               />
-          <Input
-            label="Salt Composition *"
-            name="salt_composition"
-            value={form.salt_composition}
-            onChange={handleChange}
-          />
+              <Input
+                label="Salt Composition *"
+                name="salt_composition"
+                value={form.salt_composition}
+                onChange={handleChange}
+              />
 
-          <Input
-            label="Medicine Type"
-            name="medicine_type"
-            value={form.medicine_type}
-            onChange={handleChange}
-          />
-          <Input
-            label="Packing Type"
-            name="packing_type"
-            value={form.packing_type}
-            onChange={handleChange}
-          />
+              <Input
+                label="Medicine Type"
+                name="medicine_type"
+                value={form.medicine_type}
+                onChange={handleChange}
+              />
+              <Input
+                label="Packing Type"
+                name="packing_type"
+                value={form.packing_type}
+                onChange={handleChange}
+              />
 
-          <Input
-            label="Country of Origin"
-            name="country_of_origin"
-            value={form.country_of_origin}
-            onChange={handleChange}
-          />
-          <Input
-            label="Manufacture"
-            name="manufacture"
-            value={form.manufacture}
-            onChange={handleChange}
-          />
-          <Input
-            label="Batch Number"
-            name="batchNumber"
-            value={form.batchNumber}
-            onChange={handleChange}
-          />
+              <Input
+                label="Country of Origin"
+                name="country_of_origin"
+                value={form.country_of_origin}
+                onChange={handleChange}
+              />
+              <Input
+                label="Manufacture"
+                name="manufacture"
+                value={form.manufacture}
+                onChange={handleChange}
+              />
+              <Input
+                label="Batch Number"
+                name="batchNumber"
+                value={form.batchNumber}
+                onChange={handleChange}
+              />
 
-          <Input
-            label="Storage"
-            name="storage"
-            value={form.storage}
-            onChange={handleChange}
-          />
+              <Input
+                label="Storage"
+                name="storage"
+                value={form.storage}
+                onChange={handleChange}
+              />
 
-          {/* PRICE */}
-          <Input
-            type="number"
-            label="MRP *"
-            name="mrp"
-            value={form.mrp}
-            onChange={handleChange}
-          />
-          <Input
-            type="number"
-            label="Cost Price"
-            name="cost_price"
-            value={form.cost_price}
-            onChange={handleChange}
-          />
+              {/* PRICE */}
+              <Input
+                type="number"
+                label="MRP *"
+                name="mrp"
+                value={form.mrp}
+                onChange={handleChange}
+              />
+              <Input
+                type="number"
+                label="Cost Price"
+                name="cost_price"
+                value={form.cost_price}
+                onChange={handleChange}
+              />
 
-          <Input
-            type="number"
-            label="Selling Price"
-            name="selling_price"
-            value={form.selling_price}
-            onChange={handleChange}
-          />
-          <Input
-            type="number"
-            label="Discount"
-            name="discount"
-            value={form.discount}
-            onChange={handleChange}
-          />
+              <Input
+                type="number"
+                label="Selling Price"
+                name="selling_price"
+                value={form.selling_price}
+                onChange={handleChange}
+              />
+              <Input
+                type="number"
+                label="Discount"
+                name="discount"
+                value={form.discount}
+                onChange={handleChange}
+              />
 
-          <Input
-            type="number"
-            label="Offer Percent"
-            name="offer_percent"
-            value={form.offer_percent}
-            onChange={handleChange}
-          />
+              <Input
+                type="number"
+                label="Offer Percent"
+                name="offer_percent"
+                value={form.offer_percent}
+                onChange={handleChange}
+              />
 
-          {/* STOCK */}
-          <Input
-            type="number"
-            label="Quantity"
-            name="quantity"
-            value={form.quantity}
-            onChange={handleChange}
-          />
-          <Input
-            type="date"
-            label="Expiry Date *"
-            name="expiry_date"
-            value={form.expiry_date}
-            onChange={handleChange}
-          />
+              {/* STOCK */}
+              <Input
+                type="number"
+                label="Quantity"
+                name="quantity"
+                value={form.quantity}
+                onChange={handleChange}
+              />
+              <Input
+                type="date"
+                label="Expiry Date *"
+                name="expiry_date"
+                value={form.expiry_date}
+                onChange={handleChange}
+              />
 
-          <Input
-            type="date"
-            label="Manufacturer Date *"
-            name="manufacturer_date"
-            value={form.manufacturer_date}
-            onChange={handleChange}
-          />
+              <Input
+                type="date"
+                label="Manufacturer Date *"
+                name="manufacturer_date"
+                value={form.manufacturer_date}
+                onChange={handleChange}
+              />
 
-          {/* DESCRIPTION */}
-          <div className="col-span-2">
-            <Input
-              label="Description"
-              name="description"
-              value={form.description}
-              onChange={handleChange}
-            />
-          </div>
-
-          {/* INTERACTIONS */}
-          <Input
-            label="Alcohol Interaction"
-            name="alcohol_interaction"
-            value={form.alcohol_interaction}
-            onChange={handleChange}
-          />
-          <Input
-            label="Driving Interaction"
-            name="driving_interaction"
-            value={form.driving_interaction}
-            onChange={handleChange}
-          />
-
-          <Input
-            label="Kidney Interaction"
-            name="kidney_interaction"
-            value={form.kidney_interaction}
-            onChange={handleChange}
-          />
-          <Input
-            label="Liver Interaction"
-            name="liver_interaction"
-            value={form.liver_interaction}
-            onChange={handleChange}
-          />
-
-          <Input
-            label="Lactation Interaction"
-            name="lactation_interaction"
-            value={form.lactation_interaction}
-            onChange={handleChange}
-          />
-          <Input
-            label="Pregnancy Interaction"
-            name="pregnancy_interaction"
-            value={form.pregnancy_interaction}
-            onChange={handleChange}
-          />
-
-          {/* LONG TEXT FIELDS */}
-          <div className="col-span-2">
-            <Input
-              label="Common Side Effects"
-              name="common_side_effect"
-              value={form.common_side_effect}
-              onChange={handleChange}
-            />
-          </div>
-
-          <div className="col-span-2">
-            <Input
-              label="How It Works"
-              name="how_it_works"
-              value={form.how_it_works}
-              onChange={handleChange}
-            />
-          </div>
-
-          <div className="col-span-2">
-            <Input
-              label="Missed Dose Info"
-              name="if_miss_dose"
-              value={form.if_miss_dose}
-              onChange={handleChange}
-            />
-          </div>
-
-          <div className="col-span-2">
-            <Input
-              label="Introduction"
-              name="introduction"
-              value={form.introduction}
-              onChange={handleChange}
-            />
-          </div>
-
-          <div className="col-span-2">
-            <Input
-              label="Question Answers"
-              name="question_answers"
-              value={form.question_answers}
-              onChange={handleChange}
-            />
-          </div>
-
-          <div className="col-span-2">
-            <Input
-              label="Safety Advice"
-              name="safety_advice"
-              value={form.safety_advice}
-              onChange={handleChange}
-            />
-          </div>
-
-          <Input
-            label="Use Of"
-            name="use_of"
-            value={form.use_of}
-            onChange={handleChange}
-          />
-          <Input
-            label="Packing"
-            name="packing"
-            value={form.packing}
-            onChange={handleChange}
-          />
-
-          {/* PRESCRIPTION */}
-          <div className="col-span-2">
-            <label className="mb-1 block text-md text-violet-500">
-              Prescription Required
-            </label>
-            <select
-              name="prescription_required"
-              value={form.prescription_required}
-              onChange={handleChange}
-              className="w-full rounded-md border border-slate-900 bg-white/5 px-3 py-2"
-            >
-              <option value={0}>No</option>
-              <option value={1}>Yes</option>
-            </select>
-          </div>
-
-          {/* IMAGE */}
-          <div className="col-span-2">
-            <label className=" block text-md text-violet-500">
-              Upload Images
-            </label>
-
-            <div className="grid grid-cols-2 md:grid-rows-3 gap-4">
-              {/* FRONT */}
-              <div>
-                <p className="text-sm text-slate-900 mb-1">Front</p>
-                <input
-                  type="file"
-                  onChange={(e) => handleSingleImage(e, "front")}
-                  className="border border-slate-900 rounded-md"
+              {/* DESCRIPTION */}
+              <div className="col-span-2">
+                <Input
+                  label="Description"
+                  name="description"
+                  value={form.description}
+                  onChange={handleChange}
                 />
-                {preview.front && (
-                  <img
-                    src={preview.front}
-                    className="w-24 h-24 mt-2 rounded-md object-cover"
-                  />
-                )}
               </div>
 
-              {/* BACK */}
-              <div>
-                <p className="text-sm text-slate-900 mb-1">Back</p>
-                <input
-                  type="file"
-                  onChange={(e) => handleSingleImage(e, "back")}
-                  className="border border-slate-900 rounded-md"
+              {/* INTERACTIONS */}
+              <Input
+                label="Alcohol Interaction"
+                name="alcohol_interaction"
+                value={form.alcohol_interaction}
+                onChange={handleChange}
+              />
+              <Input
+                label="Driving Interaction"
+                name="driving_interaction"
+                value={form.driving_interaction}
+                onChange={handleChange}
+              />
+
+              <Input
+                label="Kidney Interaction"
+                name="kidney_interaction"
+                value={form.kidney_interaction}
+                onChange={handleChange}
+              />
+              <Input
+                label="Liver Interaction"
+                name="liver_interaction"
+                value={form.liver_interaction}
+                onChange={handleChange}
+              />
+
+              <Input
+                label="Lactation Interaction"
+                name="lactation_interaction"
+                value={form.lactation_interaction}
+                onChange={handleChange}
+              />
+              <Input
+                label="Pregnancy Interaction"
+                name="pregnancy_interaction"
+                value={form.pregnancy_interaction}
+                onChange={handleChange}
+              />
+
+              {/* LONG TEXT FIELDS */}
+              <div className="col-span-2">
+                <Input
+                  label="Common Side Effects"
+                  name="common_side_effect"
+                  value={form.common_side_effect}
+                  onChange={handleChange}
                 />
-                {preview.back && (
-                  <img
-                    src={preview.back}
-                    className="w-24 h-24 mt-2 rounded-md object-cover"
-                  />
-                )}
               </div>
 
-              {/* TOP */}
-              <div>
-                <p className="text-sm text-slate-900 mb-1">Top</p>
-                <input
-                  type="file"
-                  onChange={(e) => handleSingleImage(e, "top")}
-                  className="border border-slate-900 rounded-md"
+              <div className="col-span-2">
+                <Input
+                  label="How It Works"
+                  name="how_it_works"
+                  value={form.how_it_works}
+                  onChange={handleChange}
                 />
-                {preview.top && (
-                  <img
-                    src={preview.top}
-                    className="w-24 h-24 mt-2 rounded-md object-cover"
-                  />
-                )}
               </div>
 
-              {/* VIEW */}
-              <div>
-                <p className="text-sm text-slate-900 mb-1">View</p>
-                <input
-                  type="file"
-                  onChange={(e) => handleSingleImage(e, "view")}
-                  className="border border-slate-900 rounded-md"
+              <div className="col-span-2">
+                <Input
+                  label="Missed Dose Info"
+                  name="if_miss_dose"
+                  value={form.if_miss_dose}
+                  onChange={handleChange}
                 />
-                {preview.view && (
-                  <img
-                    src={preview.view}
-                    className="w-24 h-24 mt-2 rounded-md object-cover"
-                  />
-                )}
               </div>
 
-              {/* EXPIRY */}
-              <div>
-                <p className="text-sm text-slate-900 mb-1">Expiry</p>
-                <input
-                  type="file"
-                  onChange={(e) => handleSingleImage(e, "expiry")}
-                  className="border border-slate-900 rounded-md"
+              <div className="col-span-2">
+                <Input
+                  label="Introduction"
+                  name="introduction"
+                  value={form.introduction}
+                  onChange={handleChange}
                 />
-                {preview.expiry && (
-                  <img
-                    src={preview.expiry}
-                    className="w-24 h-24 mt-2 rounded-md object-cover"
-                  />
-                )}
               </div>
-            </div>
-          </div>
+
+              <div className="col-span-2">
+                <Input
+                  label="Question Answers"
+                  name="question_answers"
+                  value={form.question_answers}
+                  onChange={handleChange}
+                />
+              </div>
+
+              <div className="col-span-2">
+                <Input
+                  label="Safety Advice"
+                  name="safety_advice"
+                  value={form.safety_advice}
+                  onChange={handleChange}
+                />
+              </div>
+
+              <Input
+                label="Use Of"
+                name="use_of"
+                value={form.use_of}
+                onChange={handleChange}
+              />
+              <Input
+                label="Packing"
+                name="packing"
+                value={form.packing}
+                onChange={handleChange}
+              />
+
+              {/* PRESCRIPTION */}
+              <div className="col-span-2">
+                <label className="mb-1 block text-md text-violet-500">
+                  Prescription Required
+                </label>
+                <select
+                  name="prescription_required"
+                  value={form.prescription_required}
+                  onChange={handleChange}
+                  className="w-full rounded-md border border-slate-900 bg-white/5 px-3 py-2"
+                >
+                  <option value={0}>No</option>
+                  <option value={1}>Yes</option>
+                </select>
+              </div>
+
+              {/* IMAGE */}
+              <div className="col-span-2">
+                <label className=" block text-md text-violet-500">
+                  Upload Images
+                </label>
+
+                <div className="grid grid-cols-2 md:grid-rows-3 gap-4">
+                  {/* FRONT */}
+                  <div>
+                    <p className="text-sm text-slate-900 mb-1">Front</p>
+                    <input
+                      type="file"
+                      onChange={(e) => handleSingleImage(e, "front")}
+                      className="border border-slate-900 rounded-md"
+                    />
+                    {preview.front && (
+                      <img
+                        src={preview.front}
+                        className="w-24 h-24 mt-2 rounded-md object-cover"
+                      />
+                    )}
+                  </div>
+
+                  {/* BACK */}
+                  <div>
+                    <p className="text-sm text-slate-900 mb-1">Back</p>
+                    <input
+                      type="file"
+                      onChange={(e) => handleSingleImage(e, "back")}
+                      className="border border-slate-900 rounded-md"
+                    />
+                    {preview.back && (
+                      <img
+                        src={preview.back}
+                        className="w-24 h-24 mt-2 rounded-md object-cover"
+                      />
+                    )}
+                  </div>
+
+                  {/* TOP */}
+                  <div>
+                    <p className="text-sm text-slate-900 mb-1">Top</p>
+                    <input
+                      type="file"
+                      onChange={(e) => handleSingleImage(e, "top")}
+                      className="border border-slate-900 rounded-md"
+                    />
+                    {preview.top && (
+                      <img
+                        src={preview.top}
+                        className="w-24 h-24 mt-2 rounded-md object-cover"
+                      />
+                    )}
+                  </div>
+
+                  {/* VIEW */}
+                  <div>
+                    <p className="text-sm text-slate-900 mb-1">View</p>
+                    <input
+                      type="file"
+                      onChange={(e) => handleSingleImage(e, "view")}
+                      className="border border-slate-900 rounded-md"
+                    />
+                    {preview.view && (
+                      <img
+                        src={preview.view}
+                        className="w-24 h-24 mt-2 rounded-md object-cover"
+                      />
+                    )}
+                  </div>
+
+                  {/* EXPIRY */}
+                  <div>
+                    <p className="text-sm text-slate-900 mb-1">Expiry</p>
+                    <input
+                      type="file"
+                      onChange={(e) => handleSingleImage(e, "expiry")}
+                      className="border border-slate-900 rounded-md"
+                    />
+                    {preview.expiry && (
+                      <img
+                        src={preview.expiry}
+                        className="w-24 h-24 mt-2 rounded-md object-cover"
+                      />
+                    )}
+                  </div>
+                </div>
+              </div>
             </>
           )}
         </form>
@@ -696,7 +778,7 @@ function MedicineModal({ mode = "add", initial = {}, onClose, onSubmit }) {
     </div>
   );
 }
-     
+
 function Input({ label, name, value, onChange, type = "text" }) {
   return (
     <div>
@@ -723,24 +805,52 @@ function MedicineViewModal({ data, onClose }) {
       <div className="w-full max-w-3xl rounded-2xl border border-slate-900/10 bg-white p-6 shadow-2xl relative">
         {/* Header */}
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-violet-500">Medicine Details</h2>
-          <button onClick={onClose} className="rounded-md p-1 bg-red-400 hover:bg-red-500 hover:cursor-pointer">
+          <h2 className="text-xl font-bold text-violet-500">
+            Medicine Details
+          </h2>
+          <button
+            onClick={onClose}
+            className="rounded-md p-1 bg-red-400 hover:bg-red-500 hover:cursor-pointer"
+          >
             <X size={20} />
           </button>
         </div>
 
         {/* SHOW MULTIPLE IMAGES */}
-        {data.images && data.images.length > 0 && (
-          <div className="flex flex-wrap gap-3 mb-6">
-            {data.images.map((img, idx) => (
-              <img
-                key={idx}
-                src={img}
-                className="w-32 h-32 rounded-xl border border-white/10 object-cover"
-              />
-            ))}
-          </div>
-        )}
+        {(() => {
+          let images = [];
+          if (data.images) {
+            if (Array.isArray(data.images)) {
+              images = data.images;
+            } else {
+              try {
+                images = JSON.parse(data.images);
+              } catch (e) {
+                images = [data.images];
+              }
+            }
+          }
+          if (images.length === 0) {
+            if (data.image_1) images.push(data.image_1);
+            if (data.image_2) images.push(data.image_2);
+            if (data.image_3) images.push(data.image_3);
+            if (data.image_4) images.push(data.image_4);
+            if (data.image_5) images.push(data.image_5);
+          }
+          if (images.length === 0) return null;
+          return (
+            <div className="flex flex-wrap gap-3 mb-6">
+              {images.map((img, idx) => (
+                <img
+                  key={idx}
+                  src={img}
+                  className="w-32 h-32 rounded-xl border border-white/10 object-cover"
+                  alt={`medicine-${idx}`}
+                />
+              ))}
+            </div>
+          );
+        })()}
 
         {/* GRID */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -910,7 +1020,10 @@ function CopyAdminMedicinesModal({ onClose, onCopy }) {
           <h3 className="text-xl font-semibold text-[#56cfe1]">
             Select Medicines From Master Database
           </h3>
-          <button onClick={onClose} className="rounded-md p-1 border border-red-600 text-red-600 hover:bg-red-500 hover:text-white cursor-pointer">
+          <button
+            onClick={onClose}
+            className="rounded-md p-1 border border-red-600 text-red-600 hover:bg-red-500 hover:text-white cursor-pointer"
+          >
             <X size={18} />
           </button>
         </div>
@@ -962,11 +1075,10 @@ function CopyAdminMedicinesModal({ onClose, onCopy }) {
                   <div
                     key={med.medicine_id}
                     onClick={() => toggleMedicine(med.medicine_id)}
-                    className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                      isSelected
-                        ? "border-emerald-500 bg-emerald-500/10"
-                        : "border-white/10 bg-white/5 hover:border-white/20"
-                    }`}
+                    className={`p-3 rounded-lg border cursor-pointer transition-all ${isSelected
+                      ? "border-emerald-500 bg-emerald-500/10"
+                      : "border-white/10 bg-white/5 hover:border-white/20"
+                      }`}
                   >
                     <div className="flex items-start gap-3">
                       {isSelected ? (
@@ -981,7 +1093,7 @@ function CopyAdminMedicinesModal({ onClose, onCopy }) {
                         <p className="font-semibold">{med.name}</p>
                         <p className="text-xs text-gray-600">
                           {med.category && `category: ${med.category} • `}
-                          MRP: ₹{med.price}
+                          MRP: ₹{med.mrp}
                         </p>
                       </div>
                     </div>
@@ -1123,11 +1235,10 @@ function CopyBucketModal({ onClose, onCopy }) {
                 <button
                   key={bucket.id}
                   onClick={() => handleBucketSelect(bucket.id)}
-                  className={`p-3 rounded-lg border-2 transition-all ${
-                    selectedBucket === bucket.id
-                      ? "border-emerald-500 bg-emerald-500/10"
-                      : "border-white/10 bg-white/5 hover:border-white/20"
-                  }`}
+                  className={`p-3 rounded-lg border-2 transition-all ${selectedBucket === bucket.id
+                    ? "border-emerald-500 bg-emerald-500/10"
+                    : "border-white/10 bg-white/5 hover:border-white/20"
+                    }`}
                 >
                   <p className="font-semibold">{bucket.name}</p>
                   <p className="text-xs text-gray-400">
@@ -1170,11 +1281,10 @@ function CopyBucketModal({ onClose, onCopy }) {
                     <div
                       key={med.id}
                       onClick={() => toggleMedicine(med.id)}
-                      className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                        isSelected
-                          ? "border-emerald-500 bg-emerald-500/10"
-                          : "border-white/10 bg-white/5 hover:border-white/20"
-                      }`}
+                      className={`p-3 rounded-lg border cursor-pointer transition-all ${isSelected
+                        ? "border-emerald-500 bg-emerald-500/10"
+                        : "border-white/10 bg-white/5 hover:border-white/20"
+                        }`}
                     >
                       <div className="flex items-start gap-3">
                         {isSelected ? (
@@ -1227,7 +1337,7 @@ function CopyBucketModal({ onClose, onCopy }) {
 export default function MedicineDetails() {
   const { id } = useParams(); // bucket id
   // const navigate = useNavigate();
-
+  const addMedicineCalled = useRef(false);
   const [medicines, setMedicines] = useState([]);
   const [query, setQuery] = useState("");
   const [toast, setToast] = useState("");
@@ -1245,6 +1355,7 @@ export default function MedicineDetails() {
     setToast(msg);
     setTimeout(() => setToast(""), 1500);
   };
+
 
   /*------FETCH MEDICINE DETAIL WITH ID------*/
   const [viewRow, setViewRow] = useState(false);
@@ -1274,7 +1385,7 @@ export default function MedicineDetails() {
     }
   };
   /*Searching*/
-   const filteredMedicines = useMemo(() => {
+  const filteredMedicines = useMemo(() => {
     if (!searchQuery.trim()) return medicines;
     const q = searchQuery.toLowerCase();
     return medicines.filter((m) =>
@@ -1283,7 +1394,6 @@ export default function MedicineDetails() {
         .some((v) => String(v).toLowerCase().includes(q)),
     );
   }, [medicines, searchQuery]);
-
 
   /*---Adding Medicine to Bucket---*/
 
@@ -1326,25 +1436,30 @@ export default function MedicineDetails() {
   const handleAddMedicine = async (fd) => {
     try {
       const token = localStorage.getItem("token");
-      if(fd.cost_price>fd.selling_price){
-        alert("cost price is greater than selling price");
-        return;
-      }
-      if(fd.offer_percent>fd.discount){
+
+      if (fd.offer_percent > fd.discount) {
         alert("offer percent is greater than discount");
         return;
       }
-      if(fd.cost_price <0 ||
-         fd.selling_price <0 ||
-          fd.offer_percent <0 ||
-           fd.discount<0 ||
-            fd.quantity<0 || fd.mrp<0
-          ){
+      if (
+        fd.cost_price < 0 ||
+        fd.selling_price < 0 ||
+        fd.offer_percent < 0 ||
+        fd.discount < 0 ||
+        fd.quantity < 0 ||
+        fd.mrp < 0
+      ) {
         alert("All fields cannot be negative");
         return;
       }
-      if(new Date(fd.expiry_date).getTime() < new Date().getTime() || new Date(fd.expiry_date).getTime() < new Date(fd.manufacture_date).getTime()){
-        alert("Expiry date must be greater than current date and manufacture date");
+      if (
+        new Date(fd.expiry_date).getTime() < new Date().getTime() ||
+        new Date(fd.expiry_date).getTime() <
+        new Date(fd.manufacture_date).getTime()
+      ) {
+        alert(
+          "Expiry date must be greater than current date and manufacture date",
+        );
         return;
       }
 
@@ -1378,7 +1493,7 @@ export default function MedicineDetails() {
       );
       showToast(
         res.data.message ||
-          `Successfully copied ${selectedMedicineIds.length} medicines`,
+        `Successfully copied ${selectedMedicineIds.length} medicines`,
       );
 
       // Reload medicines if we're on a bucket page
@@ -1417,10 +1532,9 @@ export default function MedicineDetails() {
 
       showToast(
         res.data.message ||
-          `Successfully copied ${selectedMedicineIds.length} medicines`,
+        `Successfully copied ${selectedMedicineIds.length} medicines`,
       );
       load();
-   
     } catch (err) {
       console.error(err);
       alert(err.response?.data?.message || "Failed to copy admin medicines");
@@ -1462,76 +1576,158 @@ export default function MedicineDetails() {
   };
 
   /*-----Update Medicine ----- */
-const handlePriceEdit = async (medicine) => {
-  try {
-    const token = localStorage.getItem("token");
-    // Fetch fresh data for this medicine
-    const res = await axios.get(
-      `${api}/medicine/vendor/medicine/${medicine.vendor_medicine_id}`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    // Open modal with fresh data
-    setPriceEditRow(res.data.data);
-  } catch (err) {
-    console.error("Fetch medicine error:", err);
-    alert("Failed to load latest medicine details");
-  }
-};
+  const handlePriceEdit = async (medicine) => {
+    try {
+      const token = localStorage.getItem("token");
+      // Fetch fresh data for this medicine
+      const res = await axios.get(
+        `${api}/medicine/vendor/medicine/${medicine.vendor_medicine_id}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      // Open modal with fresh data
+      setPriceEditRow(res.data.data);
+    } catch (err) {
+      console.error("Fetch medicine error:", err);
+      alert("Failed to load latest medicine details");
+    }
+  };
 
-const handleUpdatePrice = async (data, medicineId) => {
-  try {
-    const token = localStorage.getItem("token");
-    if(data.cost_price>data.selling_price){
-      alert("cost price is greater than selling price");
+  const handleCreateBatch = async (data) => {
+    const medicine_id = data.medicine_id || priceEditRow?.medicine_id;
+    if (!medicine_id) {
+      alert("Master medicine_id is missing — cannot create batch");
       return;
     }
-    if(data.offer_percent>data.discount){
-      alert("offer percent is greater than discount");
+    if (!data.mrp || !data.expiry_date) {
+      alert("MRP and Expiry Date are required to create a batch");
       return;
     }
-    if(data.cost_price <0 || data.selling_price <0 || data.offer_percent <0 || data.discount<0 || data.quantity<0 || data.mrp<0){
-      alert("All fields cannot be negative");
-      return;
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.post(
+        `${api}/medicine/batch`,
+        {
+          medicine_id,
+          mrp: data.mrp,
+          expiry_date: data.expiry_date,
+          manufacturer_date: data.manufacturer_date || null,
+        },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      showToast(`Batch created: ${res.data?.data?.batch_id}`);
+      setPriceEditRow(null);
+      load();
+    } catch (err) {
+      console.error(err.response?.data || err);
+      alert(err.response?.data?.message || "Failed to create batch");
     }
-    await axios.put(
-      `${api}/medicine/vendor/medicine/${medicineId}`,
-      data, 
-      {
+  };
+
+  const handleUpdatePrice = async (data, medicineId) => {
+    try {
+      const token = localStorage.getItem("token");
+
+      if (
+        data.cost_price < 0 ||
+        data.selling_price < 0 ||
+        data.offer_percent < 0 ||
+        data.discount < 0 ||
+        data.quantity < 0 ||
+        data.mrp < 0
+      ) {
+        alert("All fields cannot be negative");
+        return;
+      }
+      await axios.put(`${api}/medicine/vendor/medicine/${medicineId}`, data, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
-      }
-    );
+      });
 
-    showToast("Price Updated Successfully");
-    setPriceEditRow(null);
-    load();
-  } catch (err) {
-    console.error(err.response?.data || err);
-    alert(err.response?.data?.message || "Failed to update price");
-  }
-};
+      showToast("Price Updated Successfully");
+      setPriceEditRow(null);
+      load();
+    } catch (err) {
+      console.error(err.response?.data || err);
+      alert(err.response?.data?.message || "Failed to update price");
+    }
+  };
 
   /* ------------ Fetch Medicines ------------- */
+  // useEffect(() => {
+  //   load();
+
+  //   if (id) load();
+  // }, [id]);
+  // async function load() {
+  //   try {
+  //     const token = localStorage.getItem("token");
+
+  //     const res = await axios.get(
+  //       `${api}/medicine/vendor/medicine/bucket/${id}`,
+  //       { headers: { Authorization: `Bearer ${token}` } },
+  //     );
+
+  //     setMedicines(res.data.data);
+  //     showToast("Medicines Loaded");
+  //   } catch (err) {
+  //     console.log(err);
+  //     showToast("Failed to Load");
+  //   }
+  // }
+
   useEffect(() => {
+
+    if (!id) return;
+
     load();
 
-    if (id) load();
   }, [id]);
+
   async function load() {
     try {
       const token = localStorage.getItem("token");
 
+      // 1. First fetch existing vendor medicines in this bucket
       const res = await axios.get(
         `${api}/medicine/vendor/medicine/bucket/${id}`,
-        { headers: { Authorization: `Bearer ${token}` } },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
       );
 
-      setMedicines(res.data.data);
-      showToast("Medicines Loaded");
+      let currentMedicines = res.data.data;
+
+      // 2. If no medicines exist, call import API to load master medicines
+      if (!currentMedicines || currentMedicines.length === 0) {
+        await axios.get(
+          `${api}/medicine/vendor/bucket/add-medicine/${id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        );
+
+        // 3. Fetch again after copying
+        const secondRes = await axios.get(
+          `${api}/medicine/vendor/medicine/bucket/${id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        );
+        currentMedicines = secondRes.data.data;
+      }
+
+      setMedicines(currentMedicines);
+      console.log("Bucket ID:", id, "Medicines loaded:", currentMedicines.length);
+
     } catch (err) {
-      console.log(err);
-      showToast("Failed to Load");
+      console.log("Error loading bucket medicines:", err.message);
     }
   }
   /* ------------ Search Filter ------------- */
@@ -1558,12 +1754,12 @@ const handleUpdatePrice = async (data, medicineId) => {
       setMedicines((prev) =>
         prev.filter((item) => item.vendor_medicine_id !== m),
       );
-      alert("Medicine Delete successfully");
+      alert("Medicine Deleted successfully");
       showToast("Medicine removed from bucket");
       load();
     } catch (err) {
       console.error(err.response?.data || err);
-      alert("Failed to remove medicine from bucket");
+      alert(err.response?.data?.message || "Failed to remove medicine from bucket");
     }
   };
 
@@ -1592,7 +1788,6 @@ const handleUpdatePrice = async (data, medicineId) => {
             <Plus size={16} /> Add Medicines
           </button>
 
-         
           <button
             onClick={() => setOpenAdd(true)}
             className="inline-flex items-center gap-2 rounded-md bg-emerald-600 px-3 py-2 text-sm hover:bg-emerald-500 cursor-pointer"
@@ -1648,7 +1843,7 @@ const handleUpdatePrice = async (data, medicineId) => {
                 <td className="px-3 py-2">
                   {m.batch_id ? m.batch_id : "Not Available"}
                 </td>
-                <td className="px-3 py-2">{m.vendor_medicine_id}</td>
+                <td className="px-3 py-2">{m.medicine_id}</td>
                 <td className="px-3 py-2">
                   {m.medicine_owner ? m.medicine_owner : "vendor"}
                 </td>
@@ -1739,15 +1934,16 @@ const handleUpdatePrice = async (data, medicineId) => {
       {viewRow && (
         <MedicineViewModal data={viewdata} onClose={() => setViewRow(false)} />
       )}
-{priceEditRow && (
-  <PriceEditModal
-    initial={priceEditRow}
-    onClose={() => setPriceEditRow(null)}
-    onSubmit={(data) =>
-      handleUpdatePrice(data, priceEditRow.vendor_medicine_id)
-    }
-  />
-)}
+      {priceEditRow && (
+        <PriceEditModal
+          initial={priceEditRow}
+          onClose={() => setPriceEditRow(null)}
+          onSubmit={(data) =>
+            handleUpdatePrice(data, priceEditRow.vendor_medicine_id)
+          }
+          onCreateBatch={handleCreateBatch}
+        />
+      )}
       {/* Copy Bucket Modal */}
       {openCopyBucket && (
         <CopyBucketModal
@@ -1763,6 +1959,9 @@ const handleUpdatePrice = async (data, medicineId) => {
           onCopy={handleCopyAdminMedicines}
         />
       )}
+
+
+
     </div>
   );
 }
