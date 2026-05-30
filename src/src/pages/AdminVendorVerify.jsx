@@ -147,7 +147,7 @@ const updateStatus = async (applicant_id, action, feedbackText = null) => {
 
           <tbody>
             {rows.map((r, i) => (
-              <tr key={r.applicant_id} className="border-t border-gray-700">
+              <tr key={r.applicant_id} className="border-t border-gray-700 text-slate-900">
                 <td className="p-2">{i + 1}</td>
                 <td className="cursor-pointer">
                   <button  

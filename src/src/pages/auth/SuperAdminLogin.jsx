@@ -49,7 +49,7 @@ export default function SuperAdminLogin() {
         <Input value={username} onChange={setUsername} placeholder="Username" />
         <Input value={pwd} onChange={setPwd} placeholder="Password" type="password" />
         {err && <p className="text-red-400 text-sm">{err}</p>}
-        <button className="w-full rounded-md bg-indigo-600 px-4 py-2 font-medium hover:bg-indigo-500">
+        <button type="submit" className="w-full rounded-md bg-indigo-600 px-4 py-2 font-medium hover:bg-indigo-500">
           Login
         </button>
       </form>

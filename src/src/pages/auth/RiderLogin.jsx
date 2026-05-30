@@ -91,6 +91,7 @@ const handleChange = (e) => {
           />
 
           <button
+            type="submit"
             disabled={loading}
             className="w-full py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 transition font-medium text-white"
           >

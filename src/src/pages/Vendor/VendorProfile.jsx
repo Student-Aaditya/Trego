@@ -66,7 +66,7 @@ export default function VendorProfile() {
     <div className="max-w-4xl space-y-6">
       <h1 className="text-2xl font-semibold">My Profile</h1>
 
-      <span className="px-3 py-1 bg-green-600 rounded text-xs">
+      <span className="px-3 py-1 bg-green-600 rounded text-xs text-slate-900">
         {profile.status}
       </span>
 

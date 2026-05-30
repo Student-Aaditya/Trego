@@ -33,7 +33,7 @@ const registerSuperAdmin = (req, res) => {
 };
 
 const login = (req, res) => {
-  const { username, password } = req.body;
+  const { username, password, role } = req.body;
 
   if (!username || !password) {
     return res.status(400).json({ message: "Username and password required" });
@@ -46,6 +46,12 @@ const login = (req, res) => {
       }
 
       const user = rows[0];
+      
+      // ✅ DEBUG: Check if user has id
+      if (!user.id) {
+        console.error("❌ USER RECORD HAS NO ID:", user);
+        return res.status(500).json({ message: "Database error: user has no id" });
+      }
 
       return bcrypt.compare(password, user.password).then((isMatch) => {
         if (!isMatch) {
@@ -67,7 +73,7 @@ const login = (req, res) => {
       });
     })
     .catch((err) => {
-      console.error("Login error:", err);
+      console.error("❌ Login error:", err);
       res.status(500).json({ message: "Server error" });
     });
 };

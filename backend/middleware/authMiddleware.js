@@ -12,6 +12,7 @@ const protect = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log("✅ Token decoded:", decoded);
 
     const userId =
       decoded.id ||
@@ -20,7 +21,11 @@ const protect = (req, res, next) => {
       decoded.vendorId;
 
     if (!userId) {
-      return res.status(401).json({ message: "Invalid token: no user id" });
+      console.error("❌ NO USER ID FOUND IN TOKEN. Decoded token:", decoded);
+      return res.status(401).json({ 
+        message: "Invalid token: no user id",
+        debug: { decodedKeys: Object.keys(decoded) }
+      });
     }
 
     req.user = {
@@ -30,7 +35,7 @@ const protect = (req, res, next) => {
 
     next();
   } catch (err) {
-    console.error("JWT Error:", err.message); 
+    console.error("❌ JWT Error:", err.message); 
     return res.status(401).json({ message: "Token failed" });
   }
 };

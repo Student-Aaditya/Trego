@@ -44,6 +44,7 @@ import RiderDashboard from "./pages/Rider/RiderDashboard.jsx";
 import RiderDetaillogin from "./pages/Rider/RiderDetaillogin.jsx";
 import RiderReview from "./pages/Rider/RiderReview.jsx";
 import NotFound from "../resuable/NotFound.jsx";
+// import HomePage from "./pages/HomePage.jsx";
 // (Optional) import Header from "./components/Layout/Header"; // pre-login header
 
 export default function App() {
@@ -60,10 +61,10 @@ export default function App() {
   const doLogout = () => { logout(); navigate("/", { replace: true }); };
 
   return (
-    <div className="bg-gray-900 text-white min-h-screen">
+    <div className=" text-white min-h-screen">
       {/* Pre-login header (optional) */}
-      {!user && (
-        <div className="border-b border-gray-800 bg-gray-800 px-6 py-3">
+      {/* {!user && (
+        <div className="border-1 border-gray-800 bg-gray-800 px-6 py-3">
           <div className="mx-auto max-w-6xl flex items-center justify-between text-sm">
             <div className="font-semibold">Traco<span className="text-indigo-400">Admin</span></div>
             <div className="flex gap-4">
@@ -75,7 +76,7 @@ export default function App() {
             </div>
           </div>
         </div>
-      )}
+      )} */}
 
       <Routes>
 

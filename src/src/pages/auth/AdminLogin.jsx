@@ -4,8 +4,8 @@ import { useAuth } from "../../context/AuthContext";
 import axios from "axios";
 
 export default function AdminLogin() {
-  const [username, setUsername] = useState();
-  const [pwd, setPwd] = useState();
+  const [username, setUsername] = useState("");
+  const [pwd, setPwd] = useState("");
   const [err, setErr] = useState("");
   const navigate = useNavigate();
   const { setUser } = useAuth(); // Make sure your context provides setUser
@@ -49,7 +49,7 @@ const api="http://localhost:5000";
         <Input value={username} onChange={setUsername} placeholder="Username" />
         <Input value={pwd} onChange={setPwd} placeholder="Password" type="password" />
         {err && <p className="text-red-400 text-sm">{err}</p>}
-        <button className="w-full rounded-md bg-blue-600 px-4 py-2 font-medium hover:bg-blue-500">
+        <button type="submit" className="w-full rounded-md bg-blue-600 px-4 py-2 font-medium hover:bg-blue-500">
           Login
         </button>
       </form>

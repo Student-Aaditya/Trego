@@ -51,14 +51,15 @@ export default function VendorLogin() {
       /* 🚦 Redirect based on application status */
       if (
         applicationStatus === "PENDING_APPROVAL" ||
-        applicationStatus === "SUBMITTED",
-        applicationStatus==="DRAFT"
+        applicationStatus === "SUBMITTED"
       ) {
         navigate("/vendor/review", { replace: true });
-      }else if(applicationStatus=== "APPROVED"){
-        navigate("/dashboard",{replace:true});
-      }
-       else {
+      } else if (applicationStatus === "APPROVED") {
+        navigate("/dashboard", { replace: true });
+      } else if (applicationStatus === "DRAFT") {
+        // DRAFT = Vendor hasn't started business details form yet
+        navigate("/vendor/business/detail", { replace: true });
+      } else {
         navigate("/vendor/business/detail", { replace: true });
       }
 
@@ -87,7 +88,7 @@ export default function VendorLogin() {
           type="password"
         />
         {err && <p className="text-red-400 text-sm">{err}</p>}
-        <button className="w-full rounded-md bg-emerald-600 px-4 py-2 font-medium hover:bg-emerald-500">
+        <button type="submit" className="w-full rounded-md bg-emerald-600 px-4 py-2 font-medium hover:bg-emerald-500">
           Login
         </button>
       </form>
