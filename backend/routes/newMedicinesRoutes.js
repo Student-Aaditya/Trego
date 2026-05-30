@@ -1,9 +1,10 @@
 const express = require("express");
 const router = express.Router();
 
-const medicineController = require("../controllers/newMedicineController.js");
+// const {medicineControllerss} = require("../controllers/newMedicineController.js");
 const upload = require("../Services/cloudinary.js");
 const { protect, isSuperAdmin } = require("../middleware/authMiddleware.js");
+const { medicineControllers } = require("../controllers/newMedicineController.js");
 console.log("--- newMedicinesRoutes.js --- protect is:", typeof protect);
 
 /* ======================================================
@@ -17,13 +18,19 @@ router.get("/ping", (req, res) =>
 router.get(
   "/vendor/medicine/bucket/:bucket_id",
   protect,
-  medicineController.getVendorMedicinesByBucket,
+  medicineControllers.getVendorMedicinesByBucket,
 );
 
+// router.post(
+//   "/vendor/bucket/add-medicine/:bucket_id",
+//   protect,
+//   medicineControllers.addBucketMedicineToVendorBucket,
+// );
+
 router.post(
-  "/vendor/bucket/add-medicine/:bucket_id",
+  "/vendor/bucket/add-vendor-medicine",
   protect,
-  medicineController.addBucketMedicineToVendorBucket,
+  medicineControllers.addBucketMedicineToVendorBucket,
 );
 
 /* ======================================================
@@ -34,19 +41,26 @@ router.get(
   "/admin/bucket",
   // protect,
   // isSuperAdmin,
-  medicineController.getAllBucket,
+  medicineControllers.getAllBucket,
 );
-router.get("/bucket/:id", medicineController.getBucketDetail);
+router.get("/bucket/:id", medicineControllers.getBucketDetail);
 // create bucket (universal)
 router.post(
   "/admin/bucket",
   protect,
   upload.single("images"),
-  medicineController.addbucket,
+  medicineControllers.addbucket,
+);
+
+// delete bucket
+router.delete(
+  "/admin/bucket/:id",
+  protect,
+  medicineControllers.deleteBucket,
 );
 
 // list buckets available to vendor
-router.get("/vendor/buckets", protect, medicineController.getVendorBuckets);
+router.get("/vendor/buckets", protect, medicineControllers.getVendorBuckets);
 
 /* ======================================================
    MEDICINE ENDPOINTS (VENDOR)
@@ -57,31 +71,31 @@ router.post(
   "/create/:bucket_id",
   protect,
   upload.array("images", 5),
-  medicineController.createMedicine,
+  medicineControllers.createMedicine,
 );
 
 router.post(
   "/copy-master-medicines",
   protect,
-  medicineController.copyMasterMedicinesToVendor,
+  medicineControllers.copyMasterMedicinesToVendor,
 );
 //getvendorMedicineById
 router.get(
   "/vendor/medicine/:id",
   protect,
-  medicineController.getVendorMedicineById,
+  medicineControllers.getVendorMedicineById,
 );
 // get medicines inside vendor bucket (mapping based)
 router.get(
   "/vendor/bucket/:id/medicines",
   protect,
-  medicineController.getBucketMedicines,
+  medicineControllers.getBucketMedicines,
 );
 // get vendor medicines
-router.get("/vendor/medicine", protect, medicineController.getVendorMedicines);
+router.get("/vendor/medicine", protect, medicineControllers.getVendorMedicines);
 
 //for vendor medicine creation
- router.post(
+router.post(
   "/vendor/medicine/:bucket_id",
   protect,
   upload.fields([
@@ -89,9 +103,9 @@ router.get("/vendor/medicine", protect, medicineController.getVendorMedicines);
     { name: "back", maxCount: 1 },
     { name: "top", maxCount: 1 },
     { name: "view", maxCount: 1 },
-    { name: "expiry", maxCount: 1 }
+    { name: "expiry", maxCount: 1 },
   ]),
-  medicineController.addVendorMedicine
+  medicineControllers.addVendorMedicine,
 );
 
 // update vendor medicine
@@ -103,90 +117,112 @@ router.put(
     { name: "back", maxCount: 1 },
     { name: "top", maxCount: 1 },
     { name: "view", maxCount: 1 },
-    { name: "expiry", maxCount: 1 }
+    { name: "expiry", maxCount: 1 },
   ]),
-  medicineController.updateVendorMedicine,
+  medicineControllers.updateVendorMedicine,
 );
 
 // delete vendor medicine
 router.delete(
   "/vendor/medicine/:id",
   protect,
-  medicineController.deleteVendorMedicine,
+  medicineControllers.deleteVendorMedicine,
 );
-router.get("/batches/:bucket_id", medicineController.getBatches);
+router.patch("/update/batch/:batch_id/:medicine_id",protect,medicineControllers.updateQuantityInSpecificBatchId);
+
+router.get("/batches/:bucket_id", medicineControllers.getBatches);
+
+// master_batch_table — create / list batches for a medicine
+router.post("/batch", protect, medicineControllers.createNewBatchId);
+router.get(
+  "/batch/:medicine_id",
+  protect,
+  medicineControllers.getMasterBatchesByMedicine,
+);
+
+// update a batch in master_batch_table
+router.put("/batch/:id", protect, medicineControllers.updateMasterBatch);
+// delete a batch from master_batch_table
+router.delete("/batch/:id", protect, medicineControllers.deleteMasterBatch);
 //medicine through bucket
 router.get(
   "/medicine/bucket/:bucket_id",
-  medicineController.getMedicineThroughBucketId,
+  medicineControllers.getMedicineThroughBucketId,
 );
 //medicine through batch id
 router.get(
   "/batches/medicine/:bucket_id",
-  medicineController.getMedicinesThroughBatchId,
+  medicineControllers.getMedicinesThroughBatchId,
 );
 
 //medicine price using body
-router.get("/medicine/price", medicineController.getMedicinePrice);
+router.get("/medicine/price", medicineControllers.getMedicinePrice);
 //price through price id
-router.get("/price/:price_id", medicineController.getPriceThroughPriceId);
+router.get("/price/:price_id", medicineControllers.getPriceThroughPriceId);
 //getting medicine price detail
-router.get("/price/detail/:medicine_id", medicineController.getPriceDetail);
+router.get("/price/detail/:medicine_id", medicineControllers.getPriceDetail);
 
 //update each medicine price through medicine id and batch id
 router.put(
   "/price/:medicine_id",
   protect,
-  medicineController.updateMedicinePrice,
+  medicineControllers.updateMedicinePrice,
 );
 //all medicine price
-router.get("/price/all", medicineController.getAllMedicinePrice);
+router.get("/price/all", medicineControllers.getAllMedicinePrice);
 
 //medicine through batch
-router.get("/batch_medicine", medicineController.getMedicineThroughBatch);
+router.get("/batch_medicine", medicineControllers.getMedicineThroughBatch);
 //medicine detail through medicine id
 router.get(
-  "/medicineDetail/:medicine_id",
-  medicineController.getMedicineDetails,
+  "/medicineDetail/:medicine_id/:batch_id/:bucket_id",
+  medicineControllers.getMedicineDetails,
 );
 
 //medicine price detail through medicine and batch id
 router.get(
   "/medicinePriceDetail/:medicine_id/:batch_id",
-  medicineController.getMedicinePriceDetail,
+  medicineControllers.getMedicinePriceDetail,
 );
+router.post("/copy/:medicine_id/:batch_id/:bucket_id", protect, medicineControllers.copyMasterMedicineToVendor);
 
 // add medicine to vendor bucket (mapping only)
 router.post(
   "/vendor/bucket/add-medicine",
   protect,
-  medicineController.addMedicineToBucket,
+  medicineControllers.addMedicineToBucket,
 );
 router.post(
   "/vendor/bucket/:bucket_id",
   protect,
-  medicineController.getVendorBucketMedicine,
+  medicineControllers.getVendorBucketMedicine,
 );
 // add medicine through global list
 router.post(
   "/vendor/bucket/add-global-medicine",
   protect,
-  medicineController.addGlobalMedicineToBucket,
+  medicineControllers.addGlobalMedicineToBucket,
 );
 
 //count medicine inside bucket through batch id
 router.get(
   "/bucket/:id/count",
   protect,
-  medicineController.getBucketMedicineCount,
+  medicineControllers.getBucketMedicineCount,
 );
 //get all db medicine
-router.get("/db-medicines", medicineController.getAllDbMedicines);
+router.get("/db-medicines", medicineControllers.getAllDbMedicines);
 //GetAllMedicines
-router.get("/all", medicineController.getAllMedicineThroughBatch);
+router.get("/all", medicineControllers.getAllMedicineThroughBatch);
+
+
+//vendor created batch
+
+router.post("/vendor/batch",protect,medicineControllers.createNewBatchByVendor);
 
 // Delete medicine
-// router.delete("/:medicineId", protect, medicineController.deleteMedicine);
-
-router.delete("/:medicine_id", medicineController.deleteMedicine);
+// router.delete("/:medicineId", protect, medicineControllers.deleteMedicine);
+// router.delete("/vendor/delete/batch/:batch_id/:medicine_id",medicineControllers.deleteInSpecificBatchIdByVendor);
+router.delete("/delete/batch/:batch_id/:medicine_id",medicineControllers.deleteInSpecificBatchId);
+router.delete("/:medicine_id", medicineControllers.deleteMedicine);
 module.exports = router;

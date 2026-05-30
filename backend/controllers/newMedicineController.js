@@ -3575,6 +3575,242 @@ getMedicineDetails: async (req, res) => {
 
     }
   },
+   copyMasterMedicineToVendor : async (req, res) => {
+  const conn = await db.getConnection();
+
+  try {
+    await conn.beginTransaction();
+
+    const vendor_id = req.user.id;
+
+    const { medicine_id, batch_id } = req.params;
+
+    /* =====================================================
+       1️⃣ GET MASTER MEDICINE + BATCH
+    ===================================================== */
+
+    const [[master]] = await conn.query(
+      `
+      SELECT
+        mt.*,
+        mb.id                AS batch_row_id,
+        mb.batch_id,
+        mb.mrp,
+        mb.expiry_date,
+        mb.manufacturer_date,
+        mb.quantity,
+        mb.created_by
+      FROM medicine_master_db_table mt
+      LEFT JOIN master_batch_table mb
+        ON mt.medicine_id = mb.medicine_id
+      WHERE mt.medicine_id = ?
+        AND mb.id = ?
+      `,
+      [medicine_id, batch_id]
+    );
+
+    if (!master) {
+      await conn.rollback();
+
+      return res.status(404).json({
+        message: "Medicine or batch not found"
+      });
+    }
+
+    /* =====================================================
+       2️⃣ INSERT INTO vendor_medicine
+    ===================================================== */
+
+    const [vendorMedicineResult] = await conn.query(
+      `
+      INSERT INTO vendor_medicine (
+        name,
+        salt_composition,
+        medicine_type,
+        packing_type,
+        country_of_origin,
+        prescription_required,
+        storage,
+        manufacture,
+        batch_number,
+        bucket_id,
+        created_at,
+        updated_at,
+        batch_id,
+        medicine_owner,
+        medicine_id,
+        category,
+        sub_category,
+        vendor_id
+      )
+      VALUES (
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+        NOW(),
+        NOW(),
+        ?, 'super_admin', ?, ?, ?, ?
+      )
+      `,
+      [
+        master.name,
+        master.salt_composition,
+        master.medicine_type,
+        master.packing_type,
+        master.country_of_origin,
+        master.prescription_required,
+        master.storage,
+        master.manufacture,
+        master.batch_number,
+        master.bucket_id,
+
+        master.batch_id,
+        master.medicine_id,
+        master.category,
+        master.sub_category,
+        vendor_id
+      ]
+    );
+
+    const vendor_medicine_id = vendorMedicineResult.insertId;
+
+    /* =====================================================
+       3️⃣ INSERT INTO vendor_medicine_information
+    ===================================================== */
+
+    const [infoResult] = await conn.query(
+      `
+      INSERT INTO vendor_medicine_information (
+        vendor_medicine_id,
+        batch_id,
+        manufacturer_address,
+        alcohol_interaction,
+        common_side_effect,
+        description,
+        driving_interaction,
+        how_it_works,
+        if_miss,
+        introduction,
+        kidney_interaction,
+        lactation_interaction,
+        liver_interaction,
+        pregnancy_interaction,
+        question_answers,
+        safety_advice,
+        use_of,
+        packing,
+        created_at,
+        updated_at
+      )
+      VALUES (
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+        NOW(),
+        NOW()
+      )
+      `,
+      [
+        vendor_medicine_id,
+        master.batch_id,
+        master.manufacturer_address,
+        master.alcohol_interaction,
+        master.common_side_effect,
+        master.description,
+        master.driving_interaction,
+        master.how_it_works,
+        master.if_miss,
+        master.introduction,
+        master.kidney_interaction,
+        master.lactation_interaction,
+        master.liver_interaction,
+        master.pregnancy_interaction,
+        master.question_answers,
+        master.safety_advice,
+        master.use_of,
+        master.packaging
+      ]
+    );
+
+    const medicine_information_id = infoResult.insertId;
+
+    /* =====================================================
+       4️⃣ INSERT INTO vendor_medicine_price
+    ===================================================== */
+
+    const [priceResult] = await conn.query(
+      `
+      INSERT INTO vendor_medicine_price (
+        mrp,
+        discount,
+        bought,
+        quantity,
+        vendor_id,
+        vendor_medicine_id,
+        batch_id,
+        created_at
+      )
+      VALUES (
+        ?, ?, ?, ?, ?, ?, ?, NOW()
+      )
+      `,
+      [
+        master.mrp,
+        master.offer_percent || 0,
+        0,
+        master.quantity,
+        vendor_id,
+        vendor_medicine_id,
+        master.batch_row_id
+      ]
+    );
+
+    const price_id = priceResult.insertId;
+
+    /* =====================================================
+       5️⃣ UPDATE vendor_medicine
+    ===================================================== */
+
+    await conn.query(
+      `
+      UPDATE vendor_medicine
+      SET
+        price_id = ?,
+        medicine_information_id = ?
+      WHERE vendor_medicine_id = ?
+      `,
+      [
+        price_id,
+        medicine_information_id,
+        vendor_medicine_id
+      ]
+    );
+
+    await conn.commit();
+
+    return res.status(201).json({
+      message: "Medicine copied successfully",
+      vendor_medicine_id,
+      medicine_information_id,
+      price_id
+    });
+
+  } catch (err) {
+
+    await conn.rollback();
+
+    console.error(
+      "copyMasterMedicineToVendor error:",
+      err
+    );
+
+    return res.status(500).json({
+      message: "Server error",
+      error: err.message
+    });
+
+  } finally {
+
+    conn.release();
+
+  }
+},
   createNewBatchByVendor:async(req,res)=>{
     try{
       const vendor_user_id=req.user.id;
